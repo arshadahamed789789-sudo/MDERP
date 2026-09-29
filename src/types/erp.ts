@@ -306,6 +306,8 @@ export interface Expense {
   approvedBy?: string;
 }
 
+export type ExpenseRecord = Expense;
+
 export interface StockTransfer {
   id: string;
   transferNo: string;

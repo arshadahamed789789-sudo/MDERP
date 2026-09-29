@@ -3,6 +3,7 @@ import { ERPProvider, useERP } from './services/erpStore';
 import { Header } from './components/layout/Header';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
+import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { SalesList } from './components/sales/SalesList';
 import { NewSaleModal } from './components/sales/NewSaleModal';
@@ -15,6 +16,7 @@ import { CustomerManager } from './components/customers/CustomerManager';
 import { SupplierManager } from './components/suppliers/SupplierManager';
 import { CashBankManager } from './components/cashbank/CashBankManager';
 import { ExpenseManager } from './components/expenses/ExpenseManager';
+import { NewExpenseModal } from './components/expenses/NewExpenseModal';
 import { WarrantyManager } from './components/warranty/WarrantyManager';
 import { AccountingManager } from './components/accounting/AccountingManager';
 import { ReportsManager } from './components/reports/ReportsManager';
@@ -48,6 +50,7 @@ const ERPAppContent: React.FC = () => {
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
       {/* Top Header */}
       <Header
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenNewSale={() => setIsNewSaleOpen(true)}
         onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
@@ -68,7 +71,7 @@ const ERPAppContent: React.FC = () => {
         />
 
         {/* Content View Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 pb-24 md:pb-8">
           {activeTab === 'dashboard' && (
             <DashboardOverview
               onOpenNewSale={() => setIsNewSaleOpen(true)}
@@ -105,7 +108,11 @@ const ERPAppContent: React.FC = () => {
 
           {activeTab === 'cashbank' && <CashBankManager />}
 
-          {activeTab === 'expenses' && <ExpenseManager />}
+          {activeTab === 'expenses' && (
+            <ExpenseManager 
+              onOpenNewExpense={() => setIsNewExpenseOpen(true)}
+            />
+          )}
 
           {activeTab === 'warranty' && <WarrantyManager />}
 
@@ -118,6 +125,14 @@ const ERPAppContent: React.FC = () => {
           {activeTab === 'settings' && <SettingsManager />}
         </main>
       </div>
+
+      {/* Mobile Sticky Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        onOpenMenu={() => setIsMobileSidebarOpen(true)}
+        onOpenNewSale={() => setIsNewSaleOpen(true)}
+      />
 
       {/* Global Modals */}
       <GlobalSearchModal
@@ -147,6 +162,14 @@ const ERPAppContent: React.FC = () => {
         onClose={() => setIsNewPurchaseOpen(false)}
         onSuccess={(purNo) => {
           setActiveTab('purchase');
+        }}
+      />
+
+      <NewExpenseModal
+        isOpen={isNewExpenseOpen}
+        onClose={() => setIsNewExpenseOpen(false)}
+        onSuccess={() => {
+          setActiveTab('expenses');
         }}
       />
 

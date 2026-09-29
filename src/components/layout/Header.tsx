@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Search, Bell, Plus, Building2, UserCheck, Smartphone, 
-  ChevronDown, Globe, Store, AlertTriangle
+  ChevronDown, Globe, Store, AlertTriangle, Menu
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { UserRole, BusinessType } from '../../types/erp';
 
 interface HeaderProps {
+  onToggleMobileSidebar: () => void;
   onOpenSearch: () => void;
   onOpenNewSale: () => void;
   onOpenNewPurchase: () => void;
@@ -17,6 +18,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  onToggleMobileSidebar,
   onOpenSearch,
   onOpenNewSale,
   onOpenNewPurchase,
@@ -57,13 +59,24 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="h-16 bg-slate-900 text-white border-b border-slate-800 px-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
       {/* Brand & Tagline */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-950/40 text-white font-black text-xl tracking-tighter">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {/* Mobile Hamburger Drawer Toggle */}
+        <button
+          type="button"
+          onClick={onToggleMobileSidebar}
+          className="md:hidden p-2 -ml-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition flex items-center justify-center"
+          title="Open Menu"
+          aria-label="Toggle navigation drawer"
+        >
+          <Menu className="w-5 h-5 text-emerald-400" />
+        </button>
+
+        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-950/40 text-white font-black text-lg sm:text-xl tracking-tighter shrink-0">
           D
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-extrabold text-base tracking-wide text-white">MOBILE D-ERP</span>
+            <span className="font-extrabold text-sm sm:text-base tracking-wide text-white">MOBILE D-ERP</span>
             <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/30">
               BD v2.6
             </span>

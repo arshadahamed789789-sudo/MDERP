@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { 
   Smartphone, Search, Filter, ShieldCheck, CheckCircle2, 
-  ArrowRight, Clock, User, Building, Truck, AlertCircle, Tag
+  ArrowRight, Clock, User, Building, Truck, AlertCircle, Tag, Download, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { ImeiStatus, ProductIMEI } from '../../types/erp';
 import { BarcodeLabelModal } from './BarcodeLabelModal';
+import { EditImeiModal } from './EditImeiModal';
+import { exportToCSV } from '../../utils/exportToCsv';
 
 export const ImeiManager: React.FC = () => {
   const { imeis, language, currentBranchId } = useERP();
@@ -15,6 +17,7 @@ export const ImeiManager: React.FC = () => {
   const [selectedImei, setSelectedImei] = useState<ProductIMEI | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeTargetImei, setBarcodeTargetImei] = useState<ProductIMEI | null>(null);
+  const [editingImei, setEditingImei] = useState<ProductIMEI | null>(null);
 
   const filteredImeis = imeis
     .filter(i => currentBranchId === 'all' || i.branchId === currentBranchId)
@@ -37,6 +40,25 @@ export const ImeiManager: React.FC = () => {
   const soldCount = imeis.filter(i => i.status === 'SOLD').length;
   const warrantyCount = imeis.filter(i => i.status === 'WARRANTY').length;
 
+  const handleExportCSV = () => {
+    const headers = ['IMEI 1', 'IMEI 2', 'Serial No', 'Product Model', 'Variant', 'Status', 'Branch', 'Supplier', 'Landed Cost (BDT)', 'Purchase Date', 'Customer', 'Sale Invoice'];
+    const rows = filteredImeis.map(i => [
+      i.imei1,
+      i.imei2 || '',
+      i.serialNumber || '',
+      i.productName,
+      i.variantName,
+      i.status,
+      i.branchName,
+      i.supplierName,
+      i.purchaseCost,
+      i.purchaseDate,
+      i.customerName || '',
+      i.saleInvoiceId || ''
+    ]);
+    exportToCSV('imei_inventory_lifecycle', headers, rows);
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -51,16 +73,25 @@ export const ImeiManager: React.FC = () => {
               : 'Track individual mobile devices from supplier purchase to customer sale and warranty claims.'}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setBarcodeTargetImei(selectedImei || imeis[0]);
-            setShowBarcodeModal(true);
-          }}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 self-start sm:self-auto shadow-sm"
-        >
-          <Tag className="w-4 h-4 text-emerald-400" />
-          <span>{language === 'bn' ? 'বারকোড লেবেল স্টিকার প্রিন্ট' : 'Generate Barcode Labels'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border border-slate-300 shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
+          </button>
+          <button
+            onClick={() => {
+              setBarcodeTargetImei(selectedImei || imeis[0]);
+              setShowBarcodeModal(true);
+            }}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-sm"
+          >
+            <Tag className="w-4 h-4 text-emerald-400" />
+            <span>{language === 'bn' ? 'বারকোড লেবেল স্টিকার' : 'Generate Barcode Labels'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Status Badges */}
@@ -179,15 +210,28 @@ export const ImeiManager: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedImei(im);
-                            }}
-                            className="px-2 py-1 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded font-semibold text-[11px]"
-                          >
-                            Trace
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingImei(im);
+                              }}
+                              className="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded transition"
+                              title="Edit / Delete IMEI"
+                            >
+                              <Pencil className="w-3 h-3 text-emerald-600" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImei(im);
+                              }}
+                              className="px-2 py-1 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded font-semibold text-[11px]"
+                            >
+                              Trace
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -236,17 +280,27 @@ export const ImeiManager: React.FC = () => {
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   Current Branch: <strong>{selectedImei.branchName}</strong>
                 </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setBarcodeTargetImei(selectedImei);
-                    setShowBarcodeModal(true);
-                  }}
-                  className="w-full mt-2 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
-                >
-                  <Tag className="w-3.5 h-3.5" />
-                  <span>Print Barcode Sticker for this Phone</span>
-                </button>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingImei(selectedImei)}
+                    className="flex-1 py-1.5 px-3 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition"
+                  >
+                    <Pencil className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Edit IMEI / Delete</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBarcodeTargetImei(selectedImei);
+                      setShowBarcodeModal(true);
+                    }}
+                    className="flex-1 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition"
+                  >
+                    <Tag className="w-3.5 h-3.5" />
+                    <span>Print Barcode</span>
+                  </button>
+                </div>
               </div>
 
               {/* Lifecycle Steps */}
@@ -346,6 +400,16 @@ export const ImeiManager: React.FC = () => {
         isOpen={showBarcodeModal}
         onClose={() => setShowBarcodeModal(false)}
         initialImei={barcodeTargetImei}
+      />
+
+      {/* Edit & Delete IMEI Modal */}
+      <EditImeiModal
+        isOpen={!!editingImei}
+        imei={editingImei}
+        onClose={() => setEditingImei(null)}
+        onDeleteSuccess={() => {
+          setSelectedImei(null);
+        }}
       />
     </div>
   );

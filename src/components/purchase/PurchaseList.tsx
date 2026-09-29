@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Truck, Search, Plus, Filter, Eye, ArrowUpRight, RotateCcw, FileText, CheckCircle2 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
+import { PurchaseInvoice } from '../../types/erp';
 import { PurchaseReturnModal } from './PurchaseReturnModal';
+import { PurchaseBillDetailsModal } from './PurchaseBillDetailsModal';
 
 interface PurchaseListProps {
   onOpenNewPurchase: () => void;
@@ -15,6 +17,7 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
   const [activeTab, setActiveTab] = useState<'bills' | 'returns'>('bills');
   const [searchTerm, setSearchTerm] = useState('');
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [selectedPurchase, setSelectedPurchase] = useState<PurchaseInvoice | null>(null);
 
   const filteredPurchases = purchases
     .filter(p => currentBranchId === 'all' || p.branchId === currentBranchId)
@@ -102,10 +105,10 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
       </div>
 
       {/* Subtab Navigation */}
-      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold">
+      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto whitespace-nowrap pb-0.5">
         <button
           onClick={() => setActiveTab('bills')}
-          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 ${
+          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'bills' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -153,12 +156,13 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
                   <th className="py-3 px-3 text-right">Paid</th>
                   <th className="py-3 px-3 text-right">Due</th>
                   <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-3 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 {filteredPurchases.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       No purchase invoices found.
                     </td>
                   </tr>
@@ -206,6 +210,16 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800 uppercase tracking-wider">
                           {p.status}
                         </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPurchase(p)}
+                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 transition"
+                          title="View Bill Details / Goods Receipt"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -285,6 +299,16 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
         onSuccess={() => {
           setIsReturnModalOpen(false);
           setActiveTab('returns');
+        }}
+      />
+
+      {/* Purchase Bill Details Modal */}
+      <PurchaseBillDetailsModal
+        isOpen={!!selectedPurchase}
+        purchase={selectedPurchase}
+        onClose={() => setSelectedPurchase(null)}
+        onVoidSuccess={() => {
+          setSelectedPurchase(null);
         }}
       />
     </div>

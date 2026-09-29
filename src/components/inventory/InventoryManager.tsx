@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Boxes, Plus, Search, ArrowRightLeft, Smartphone, AlertTriangle, 
-  Layers, Package, Check, X, SlidersHorizontal
+  Layers, Package, Check, X, SlidersHorizontal, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT } from '../../utils/formatters';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
+import { EditProductModal } from './EditProductModal';
+import { Product } from '../../types/erp';
 
 export const InventoryManager: React.FC = () => {
   const { 
@@ -42,6 +44,7 @@ export const InventoryManager: React.FC = () => {
 
   // Stock Adjustment Modal
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   // Filter products
   const filteredProducts = products.filter(p => {
@@ -138,7 +141,7 @@ export const InventoryManager: React.FC = () => {
               : 'Multi-level pricing (Retail, Wholesale, Dealer), RAM/ROM variants, and warehouse transfers.'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowAdjustmentModal(true)}
             className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
@@ -226,13 +229,21 @@ export const InventoryManager: React.FC = () => {
                 {prod.description && <p className="text-xs text-slate-500 mt-0.5">{prod.description}</p>}
               </div>
 
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-3 text-xs flex-wrap">
                 <span className="text-slate-500">
                   Warranty: <strong className="text-slate-800">{prod.warrantyMonths} Mos</strong>
                 </span>
                 <span className="text-slate-500">
                   Reorder Level: <strong className="text-slate-800">{prod.reorderLevel} Units</strong>
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(prod)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold transition flex items-center gap-1 shadow-xs"
+                >
+                  <Pencil className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{language === 'bn' ? 'এডিট' : 'Edit'}</span>
+                </button>
               </div>
             </div>
 
@@ -571,6 +582,13 @@ export const InventoryManager: React.FC = () => {
         onSuccess={(adjNo) => {
           setShowAdjustmentModal(false);
         }}
+      />
+
+      {/* Edit Product Modal */}
+      <EditProductModal
+        isOpen={!!editingProduct}
+        product={editingProduct}
+        onClose={() => setEditingProduct(null)}
       />
     </div>
   );

@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { 
   ShoppingBag, Search, Plus, Filter, Eye, Printer, RotateCcw, 
-  Download, ArrowDownRight, User, Calendar, FileText, CheckCircle2
+  Download, ArrowDownRight, User, Calendar, FileText, CheckCircle2, Trash2, Ban, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { NewQuotationModal } from './NewQuotationModal';
 import { SalesReturnModal } from './SalesReturnModal';
+import { QuotationPrintModal } from './QuotationPrintModal';
+import { exportToCSV } from '../../utils/exportToCsv';
+import { Quotation } from '../../types/erp';
 
 interface SalesListProps {
   onOpenNewSale: () => void;
@@ -17,7 +20,10 @@ export const SalesList: React.FC<SalesListProps> = ({
   onOpenNewSale,
   onViewInvoice
 }) => {
-  const { sales, quotations, salesReturns, convertQuotationToSale, language, currentBranchId } = useERP();
+  const { 
+    sales, quotations, salesReturns, convertQuotationToSale, 
+    deleteQuotation, voidSaleInvoice, language, currentBranchId 
+  } = useERP();
 
   const [activeTab, setActiveTab] = useState<'invoices' | 'quotations' | 'returns'>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,7 +31,9 @@ export const SalesList: React.FC<SalesListProps> = ({
 
   // Modals
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [printingQuotation, setPrintingQuotation] = useState<Quotation | null>(null);
   const [actionMessage, setActionMessage] = useState('');
 
   const filteredSales = sales
@@ -45,6 +53,56 @@ export const SalesList: React.FC<SalesListProps> = ({
   const totalSalesAmount = filteredSales.reduce((acc, s) => acc + s.grandTotal, 0);
   const totalPaidAmount = filteredSales.reduce((acc, s) => acc + s.paidAmount, 0);
   const totalDueAmount = filteredSales.reduce((acc, s) => acc + s.dueAmount, 0);
+
+  const handleExportCSV = () => {
+    if (activeTab === 'invoices') {
+      const headers = ['Invoice No', 'Date', 'Customer Name', 'Mobile', 'Customer Type', 'Subtotal', 'Discount', 'Grand Total', 'Paid', 'Due', 'Payment Modes', 'Branch'];
+      const rows = filteredSales.map(s => [
+        s.invoiceNo,
+        s.date,
+        s.customerName,
+        s.customerMobile,
+        s.customerType,
+        s.subtotal,
+        s.discount,
+        s.grandTotal,
+        s.paidAmount,
+        s.dueAmount,
+        s.payments.map(p => `${p.method}: ${p.amount}`).join('; '),
+        s.branchName
+      ]);
+      exportToCSV('sales_invoices', headers, rows);
+    } else if (activeTab === 'quotations') {
+      const headers = ['Quote No', 'Date', 'Customer Name', 'Mobile', 'Type', 'Subtotal', 'Discount', 'Grand Total', 'Valid Until', 'Status', 'Branch'];
+      const rows = quotations.map(q => [
+        q.quoteNo,
+        q.date,
+        q.customerName,
+        q.customerMobile,
+        q.customerType,
+        q.subtotal,
+        q.discount,
+        q.grandTotal,
+        q.validUntil,
+        q.status,
+        q.branchName
+      ]);
+      exportToCSV('quotations', headers, rows);
+    } else {
+      const headers = ['Return No', 'Date', 'Original Invoice', 'Customer Name', 'Refund Total', 'Method', 'Branch', 'Notes'];
+      const rows = salesReturns.map(r => [
+        r.returnNo,
+        r.date,
+        r.saleInvoiceNo,
+        r.customerName,
+        r.totalRefund,
+        r.refundMethod,
+        r.branchName,
+        r.notes || ''
+      ]);
+      exportToCSV('sales_returns', headers, rows);
+    }
+  };
 
   const handleConvertQuote = (quoteId: string) => {
     const res = convertQuotationToSale(quoteId);
@@ -70,6 +128,13 @@ export const SalesList: React.FC<SalesListProps> = ({
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 shadow-xs"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
+          </button>
           {activeTab === 'invoices' && (
             <button
               onClick={onOpenNewSale}
@@ -108,10 +173,10 @@ export const SalesList: React.FC<SalesListProps> = ({
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold">
+      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto whitespace-nowrap pb-0.5">
         <button
           onClick={() => setActiveTab('invoices')}
-          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 ${
+          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 shrink-0 ${
             activeTab === 'invoices' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
@@ -240,18 +305,42 @@ export const SalesList: React.FC<SalesListProps> = ({
                         )}
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                          inv.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
                           {inv.status}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-center">
-                        <button
-                          onClick={() => onViewInvoice(inv.invoiceNo)}
-                          className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition"
-                          title="Print / View Invoice"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => onViewInvoice(inv.invoiceNo)}
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition"
+                            title="Print / View Invoice"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          {inv.status !== 'CANCELLED' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const reason = prompt(`Reason for voiding / cancelling invoice ${inv.invoiceNo}:`);
+                                if (reason) {
+                                  const res = voidSaleInvoice(inv.invoiceNo, reason);
+                                  if (res.success) {
+                                    setActionMessage(`Invoice ${inv.invoiceNo} successfully cancelled. Stock restored.`);
+                                  } else {
+                                    alert(res.error || 'Failed to cancel invoice');
+                                  }
+                                }
+                              }}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
+                              title="Void / Cancel Invoice (Restores IMEIs to stock)"
+                            >
+                              <Ban className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -268,7 +357,10 @@ export const SalesList: React.FC<SalesListProps> = ({
           <div className="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
             <span className="font-bold text-slate-900">Dealer Quotations & Price Estimates</span>
             <button
-              onClick={() => setIsQuotationModalOpen(true)}
+              onClick={() => {
+                setEditingQuotation(null);
+                setIsQuotationModalOpen(true);
+              }}
               className="text-xs font-bold text-emerald-600 hover:text-emerald-700"
             >
               + Create Quotation
@@ -308,16 +400,52 @@ export const SalesList: React.FC<SalesListProps> = ({
                     </span>
                   </td>
                   <td className="py-3 px-3 text-center">
-                    {q.status !== 'CONVERTED' ? (
+                    <div className="flex items-center justify-center gap-1.5">
                       <button
-                        onClick={() => handleConvertQuote(q.id)}
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold transition"
+                        onClick={() => setPrintingQuotation(q)}
+                        className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition"
+                        title="Print / View Quotation"
                       >
-                        Convert to Sale
+                        <Printer className="w-3.5 h-3.5" />
                       </button>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">Sold</span>
-                    )}
+                      {q.status !== 'CONVERTED' ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQuotation(q);
+                              setIsQuotationModalOpen(true);
+                            }}
+                            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition"
+                            title="Edit Quotation"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleConvertQuote(q.id)}
+                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[10px] font-bold transition"
+                          >
+                            Convert
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (confirm(`Are you sure you want to delete quotation ${q.quoteNo}?`)) {
+                                deleteQuotation(q.id);
+                                setActionMessage(`Quotation ${q.quoteNo} deleted.`);
+                                setTimeout(() => setActionMessage(''), 2500);
+                              }
+                            }}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded transition"
+                            title="Delete Quotation"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-semibold">Sold</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -385,9 +513,13 @@ export const SalesList: React.FC<SalesListProps> = ({
       {/* Modals */}
       <NewQuotationModal
         isOpen={isQuotationModalOpen}
-        onClose={() => setIsQuotationModalOpen(false)}
+        quotationToEdit={editingQuotation}
+        onClose={() => {
+          setIsQuotationModalOpen(false);
+          setEditingQuotation(null);
+        }}
         onSuccess={(quoteNo) => {
-          setActionMessage(`Quotation ${quoteNo} generated successfully!`);
+          setActionMessage(`Quotation ${quoteNo} saved successfully!`);
           setTimeout(() => setActionMessage(''), 3000);
         }}
       />
@@ -399,6 +531,13 @@ export const SalesList: React.FC<SalesListProps> = ({
           setActionMessage(`Sales Return ${returnNo} processed! IMEI restocked and ledger updated.`);
           setTimeout(() => setActionMessage(''), 3000);
         }}
+      />
+
+      {/* Quotation Print & View Modal */}
+      <QuotationPrintModal
+        quotation={printingQuotation}
+        onClose={() => setPrintingQuotation(null)}
+        onConvert={handleConvertQuote}
       />
     </div>
   );

@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Truck, Smartphone, Boxes, Users,
   Building, Wallet, Landmark, Receipt, ShieldAlert, BookOpen,
-  BarChart3, History, Settings, ChevronRight
+  BarChart3, History, Settings, ChevronRight, X
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 
@@ -148,16 +148,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div 
           onClick={onCloseMobile}
-          className="fixed inset-0 bg-slate-900/50 z-20 md:hidden"
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-40 md:hidden animate-in fade-in-50"
         />
       )}
 
       <aside className={`
-        fixed md:static top-16 bottom-0 left-0 z-20
-        w-64 bg-slate-900 text-slate-300 border-r border-slate-800
-        flex flex-col transition-transform duration-200 ease-in-out
+        fixed md:static top-0 md:top-16 bottom-0 left-0 z-50 md:z-20
+        w-72 sm:w-64 bg-slate-900 text-slate-300 border-r border-slate-800
+        flex flex-col transition-transform duration-200 ease-in-out shadow-2xl md:shadow-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
+        {/* Mobile Header with Close button */}
+        <div className="md:hidden px-4 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center font-black text-white text-base">
+              D
+            </div>
+            <div>
+              <span className="font-extrabold text-sm text-white">MOBILE D-ERP</span>
+              <p className="text-[10px] text-emerald-400 font-medium">Navigation Menu</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
         {/* Navigation list */}
         <div className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
           {navItems.map(item => {

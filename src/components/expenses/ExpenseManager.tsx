@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
 import { 
   Receipt, Plus, Search, Filter, Wallet, ArrowDownRight, 
-  Calendar, Check, X, FileText
+  Calendar, Check, X, FileText, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
+import { ExpenseRecord } from '../../types/erp';
+import { EditExpenseModal } from './EditExpenseModal';
 
 interface ExpenseManagerProps {
   onOpenNewExpense?: () => void;
 }
 
-export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
+export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense }) => {
   const { 
     expenses, expenseCategories, cashAccounts, bankAccounts, 
     branches, createExpense, language, currentBranchId 
@@ -19,6 +21,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<ExpenseRecord | null>(null);
 
   // Add Expense fields
   const [categoryId, setCategoryId] = useState(expenseCategories[0]?.id || '');
@@ -79,7 +82,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
           </p>
         </div>
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => (onOpenNewExpense ? onOpenNewExpense() : setShowAddModal(true))}
           className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
         >
           <Plus className="w-4 h-4" />
@@ -147,12 +150,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
                 <th className="py-3 px-3">Description</th>
                 <th className="py-3 px-3">Paid From</th>
                 <th className="py-3 px-3 text-right">Amount (৳)</th>
+                <th className="py-3 px-3 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No expense records found.
                   </td>
                 </tr>
@@ -180,6 +184,16 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
                     </td>
                     <td className="py-3 px-3 text-right font-mono font-bold text-rose-600 text-sm">
                       {formatBDT(exp.amount)}
+                    </td>
+                    <td className="py-3 px-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => setEditingExpense(exp)}
+                        className="p-1.5 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded-lg transition"
+                        title="Edit / Delete Expense"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-rose-600" />
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -316,6 +330,13 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Expense Modal */}
+      <EditExpenseModal
+        isOpen={!!editingExpense}
+        expense={editingExpense}
+        onClose={() => setEditingExpense(null)}
+      />
     </div>
   );
 };

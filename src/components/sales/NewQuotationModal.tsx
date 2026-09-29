@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, X, Plus, Trash2, ArrowRight, Smartphone } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, getPriceForCustomer } from '../../utils/formatters';
-import { SaleItem } from '../../types/erp';
+import { Quotation, SaleItem } from '../../types/erp';
 
 interface NewQuotationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (quoteNo: string) => void;
+  quotationToEdit?: Quotation | null;
 }
 
 export const NewQuotationModal: React.FC<NewQuotationModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  quotationToEdit
 }) => {
-  const { customers, products, branches, createQuotation, currentBranchId, language } = useERP();
+  const { customers, products, branches, createQuotation, updateQuotation, currentBranchId, language } = useERP();
 
   const [customerId, setCustomerId] = useState(customers[0]?.id || '');
   const [branchId, setBranchId] = useState(currentBranchId !== 'all' ? currentBranchId : branches[0].id);
@@ -32,6 +34,24 @@ export const NewQuotationModal: React.FC<NewQuotationModalProps> = ({
   const [selectedVariantId, setSelectedVariantId] = useState('');
   const [qty, setQty] = useState(1);
   const [rate, setRate] = useState(0);
+
+  useEffect(() => {
+    if (quotationToEdit) {
+      setCustomerId(quotationToEdit.customerId);
+      setBranchId(quotationToEdit.branchId);
+      setValidUntil(quotationToEdit.validUntil);
+      setNotes(quotationToEdit.notes || '');
+      setItems(quotationToEdit.items || []);
+    } else {
+      setCustomerId(customers[0]?.id || '');
+      setBranchId(currentBranchId !== 'all' ? currentBranchId : branches[0].id);
+      const d = new Date();
+      d.setDate(d.getDate() + 7);
+      setValidUntil(d.toISOString().split('T')[0]);
+      setNotes('Price quotation valid for 7 days. Subject to stock availability.');
+      setItems([]);
+    }
+  }, [quotationToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -67,19 +87,33 @@ export const NewQuotationModal: React.FC<NewQuotationModalProps> = ({
     e.preventDefault();
     if (items.length === 0 || !customerId) return;
 
-    const quote = createQuotation({
-      customerId,
-      branchId,
-      validUntil,
-      items,
-      subtotal,
-      discount: 0,
-      grandTotal,
-      notes
-    });
-
-    onSuccess(quote.quoteNo);
-    onClose();
+    if (quotationToEdit) {
+      updateQuotation(quotationToEdit.id, {
+        customerId,
+        branchId,
+        validUntil,
+        items,
+        subtotal,
+        discount: 0,
+        grandTotal,
+        notes
+      });
+      onSuccess(quotationToEdit.quoteNo);
+      onClose();
+    } else {
+      const quote = createQuotation({
+        customerId,
+        branchId,
+        validUntil,
+        items,
+        subtotal,
+        discount: 0,
+        grandTotal,
+        notes
+      });
+      onSuccess(quote.quoteNo);
+      onClose();
+    }
   };
 
   return (
@@ -88,7 +122,11 @@ export const NewQuotationModal: React.FC<NewQuotationModalProps> = ({
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
           <h2 className="text-sm font-bold flex items-center gap-2">
             <FileText className="w-4 h-4 text-emerald-400" />
-            <span>Create Wholesale Price Quotation (দরপ্রস্তাব)</span>
+            <span>
+              {quotationToEdit 
+                ? (language === 'bn' ? `দরপ্রস্তাব সম্পাদনা (${quotationToEdit.quoteNo})` : `Edit Price Quotation (${quotationToEdit.quoteNo})`)
+                : (language === 'bn' ? 'নতুন পাইকারি দরপ্রস্তাব (Quotation)' : 'Create Wholesale Price Quotation')}
+            </span>
           </h2>
           <button onClick={onClose}>
             <X className="w-5 h-5 text-slate-400 hover:text-white" />

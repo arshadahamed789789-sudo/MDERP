@@ -168,8 +168,30 @@ interface ERPContextType {
   }) => { success: boolean; closing?: DailyClosingRecord };
 
   addProduct: (product: Omit<Product, 'id'>) => Product;
+  updateProduct: (id: string, updated: Partial<Product>) => boolean;
+  deleteProduct: (id: string) => { success: boolean; error?: string };
+
   addCustomer: (customer: Omit<Customer, 'id' | 'currentDue' | 'totalPurchased' | 'totalPaid'>) => Customer;
+  updateCustomer: (id: string, updated: Partial<Customer>) => boolean;
+  deleteCustomer: (id: string) => { success: boolean; error?: string };
+
   addSupplier: (supplier: Omit<Supplier, 'id' | 'currentPayable' | 'totalPurchased' | 'totalPaid'>) => Supplier;
+  updateSupplier: (id: string, updated: Partial<Supplier>) => boolean;
+  deleteSupplier: (id: string) => { success: boolean; error?: string };
+
+  updateExpense: (id: string, updated: Partial<ExpenseRecord>) => boolean;
+  deleteExpense: (id: string) => boolean;
+
+  updateWarrantyClaim: (id: string, updated: Partial<WarrantyClaim>) => boolean;
+  deleteWarrantyClaim: (id: string) => boolean;
+
+  addCashAccount: (account: Omit<CashAccount, 'id'>) => CashAccount;
+  updateCashAccount: (id: string, updated: Partial<CashAccount>) => boolean;
+  deleteCashAccount: (id: string) => boolean;
+
+  addBankAccount: (account: Omit<BankAccount, 'id'>) => BankAccount;
+  updateBankAccount: (id: string, updated: Partial<BankAccount>) => boolean;
+  deleteBankAccount: (id: string) => boolean;
 
   createQuotation: (data: {
     customerId: string;
@@ -181,6 +203,11 @@ interface ERPContextType {
     grandTotal: number;
     notes?: string;
   }) => Quotation;
+
+  updateQuotation: (id: string, updated: Partial<Quotation>) => boolean;
+  deleteQuotation: (id: string) => boolean;
+
+  voidSaleInvoice: (invoiceNo: string, reason?: string) => { success: boolean; error?: string };
 
   convertQuotationToSale: (quoteId: string) => { success: boolean; invoice?: SaleInvoice; error?: string };
 
@@ -201,6 +228,18 @@ interface ERPContextType {
     items: PurchaseReturnItem[];
     notes?: string;
   }) => { success: boolean; returnNo?: string; error?: string };
+
+  updateIMEI: (imei1: string, updated: Partial<ProductIMEI>) => boolean;
+  deleteIMEI: (imei1: string) => { success: boolean; error?: string };
+
+  addBranch: (branch: Omit<Branch, 'id'>) => Branch;
+  updateBranch: (id: string, updated: Partial<Branch>) => boolean;
+  deleteBranch: (id: string) => { success: boolean; error?: string };
+
+  addBrand: (name: string, country?: string) => Brand;
+  deleteBrand: (id: string) => { success: boolean; error?: string };
+
+  voidPurchaseBill: (invoiceNo: string, reason?: string) => { success: boolean; error?: string };
 
   createStockAdjustment: (data: {
     branchId: string;
@@ -253,7 +292,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [businessType, setBusinessType] = useState<BusinessType>(() => 
     loadState('biz_type', 'RETAIL_WHOLESALE')
   );
-  const [branches] = useState<Branch[]>(initialBranches);
+  const [branches, setBranches] = useState<Branch[]>(() => 
+    loadState('branches', initialBranches)
+  );
   const [users] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
   const [currentBranchId, setCurrentBranchId] = useState<string>('all');
@@ -288,6 +329,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Auto-sync state changes to localStorage
   useEffect(() => saveState('config', businessConfig), [businessConfig]);
   useEffect(() => saveState('biz_type', businessType), [businessType]);
+  useEffect(() => saveState('branches', branches), [branches]);
   useEffect(() => saveState('brands', brands), [brands]);
   useEffect(() => saveState('categories', categories), [categories]);
   useEffect(() => saveState('products', products), [products]);
@@ -1313,6 +1355,401 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newSupplier;
   };
 
+  // --- CRUD FUNCTIONS ---
+
+  // 1. Product CRUD
+  const updateProduct = (id: string, updated: Partial<Product>) => {
+    setProducts(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      return { ...p, ...updated };
+    }));
+    logAudit('PRODUCT_UPDATED', 'Products', id, `Updated product model / pricing`);
+    return true;
+  };
+
+  const deleteProduct = (id: string) => {
+    const prod = products.find(p => p.id === id);
+    if (!prod) return { success: false, error: 'Product not found' };
+
+    const totalStock = prod.variants.reduce((sum, v) => sum + v.currentStock, 0);
+    const hasInStockImeis = imeis.some(im => im.productId === id && im.status === 'IN_STOCK');
+    if (totalStock > 0 || hasInStockImeis) {
+      return {
+        success: false,
+        error: `Cannot delete "${prod.brandName} ${prod.model}". There are still ${totalStock} physical units in stock.`
+      };
+    }
+
+    setProducts(prev => prev.filter(p => p.id !== id));
+    logAudit('PRODUCT_DELETED', 'Products', id, `Deleted product catalog model ${prod.model}`);
+    return { success: true };
+  };
+
+  // 2. Customer CRUD
+  const updateCustomer = (id: string, updated: Partial<Customer>) => {
+    setCustomers(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      return { ...c, ...updated };
+    }));
+    logAudit('CUSTOMER_UPDATED', 'Customers', id, `Updated customer profile info`);
+    return true;
+  };
+
+  const deleteCustomer = (id: string) => {
+    const cust = customers.find(c => c.id === id);
+    if (!cust) return { success: false, error: 'Customer not found' };
+
+    if (cust.currentDue > 0) {
+      return {
+        success: false,
+        error: `Cannot delete ${cust.name}. An unpaid due balance of ৳${cust.currentDue.toLocaleString()} exists.`
+      };
+    }
+
+    setCustomers(prev => prev.filter(c => c.id !== id));
+    logAudit('CUSTOMER_DELETED', 'Customers', id, `Deleted customer ${cust.name}`);
+    return { success: true };
+  };
+
+  // 3. Supplier CRUD
+  const updateSupplier = (id: string, updated: Partial<Supplier>) => {
+    setSuppliers(prev => prev.map(s => {
+      if (s.id !== id) return s;
+      return { ...s, ...updated };
+    }));
+    logAudit('SUPPLIER_UPDATED', 'Suppliers', id, `Updated supplier profile info`);
+    return true;
+  };
+
+  const deleteSupplier = (id: string) => {
+    const sup = suppliers.find(s => s.id === id);
+    if (!sup) return { success: false, error: 'Supplier not found' };
+
+    if (sup.currentPayable > 0) {
+      return {
+        success: false,
+        error: `Cannot delete ${sup.name}. An outstanding payable balance of ৳${sup.currentPayable.toLocaleString()} exists.`
+      };
+    }
+
+    setSuppliers(prev => prev.filter(s => s.id !== id));
+    logAudit('SUPPLIER_DELETED', 'Suppliers', id, `Deleted supplier ${sup.name}`);
+    return { success: true };
+  };
+
+  // 4. Expense CRUD
+  const updateExpense = (id: string, updated: Partial<ExpenseRecord>) => {
+    setExpenses(prev => prev.map(e => {
+      if (e.id !== id) return e;
+      const cat = updated.categoryId ? expenseCategories.find(c => c.id === updated.categoryId) : undefined;
+      return {
+        ...e,
+        ...updated,
+        categoryName: cat ? cat.name : e.categoryName
+      };
+    }));
+    logAudit('EXPENSE_UPDATED', 'Expenses', id, `Updated expense voucher`);
+    return true;
+  };
+
+  const deleteExpense = (id: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== id));
+    logAudit('EXPENSE_DELETED', 'Expenses', id, `Deleted expense voucher`);
+    return true;
+  };
+
+  // 5. Warranty Claims CRUD
+  const updateWarrantyClaim = (id: string, updated: Partial<WarrantyClaim>) => {
+    setWarrantyClaims(prev => prev.map(w => {
+      if (w.id !== id) return w;
+      return { ...w, ...updated };
+    }));
+    logAudit('WARRANTY_CLAIM_UPDATED', 'Warranty', id, `Updated warranty claim`);
+    return true;
+  };
+
+  const deleteWarrantyClaim = (id: string) => {
+    setWarrantyClaims(prev => prev.filter(w => w.id !== id));
+    logAudit('WARRANTY_CLAIM_DELETED', 'Warranty', id, `Deleted warranty claim`);
+    return true;
+  };
+
+  // 6. Cash & Bank Accounts CRUD
+  const addCashAccount = (accountData: Omit<CashAccount, 'id'>) => {
+    const newId = `cash-${Date.now()}`;
+    const newAccount: CashAccount = {
+      ...accountData,
+      id: newId
+    };
+    setCashAccounts(prev => [...prev, newAccount]);
+    logAudit('CASH_ACCOUNT_CREATED', 'CashBank', newId, `Added cash drawer ${newAccount.name}`);
+    return newAccount;
+  };
+
+  const updateCashAccount = (id: string, updated: Partial<CashAccount>) => {
+    setCashAccounts(prev => prev.map(a => {
+      if (a.id !== id) return a;
+      return { ...a, ...updated };
+    }));
+    logAudit('CASH_ACCOUNT_UPDATED', 'CashBank', id, `Updated cash drawer details`);
+    return true;
+  };
+
+  const deleteCashAccount = (id: string) => {
+    setCashAccounts(prev => prev.filter(a => a.id !== id));
+    logAudit('CASH_ACCOUNT_DELETED', 'CashBank', id, `Deleted cash account`);
+    return true;
+  };
+
+  const addBankAccount = (accountData: Omit<BankAccount, 'id'>) => {
+    const newId = `bank-${Date.now()}`;
+    const newAccount: BankAccount = {
+      ...accountData,
+      id: newId
+    };
+    setBankAccounts(prev => [...prev, newAccount]);
+    logAudit('BANK_ACCOUNT_CREATED', 'CashBank', newId, `Added bank/MFS account ${newAccount.bankName} (${newAccount.accountNumber})`);
+    return newAccount;
+  };
+
+  const updateBankAccount = (id: string, updated: Partial<BankAccount>) => {
+    setBankAccounts(prev => prev.map(a => {
+      if (a.id !== id) return a;
+      return { ...a, ...updated };
+    }));
+    logAudit('BANK_ACCOUNT_UPDATED', 'CashBank', id, `Updated bank/MFS account details`);
+    return true;
+  };
+
+  const deleteBankAccount = (id: string) => {
+    setBankAccounts(prev => prev.filter(a => a.id !== id));
+    logAudit('BANK_ACCOUNT_DELETED', 'CashBank', id, `Deleted bank account`);
+    return true;
+  };
+
+  // 7. Quotations CRUD
+  const updateQuotation = (id: string, updated: Partial<Quotation>) => {
+    setQuotations(prev => prev.map(q => {
+      if (q.id !== id) return q;
+      return { ...q, ...updated };
+    }));
+    logAudit('QUOTATION_UPDATED', 'Sales', id, `Updated quotation`);
+    return true;
+  };
+
+  const deleteQuotation = (id: string) => {
+    setQuotations(prev => prev.filter(q => q.id !== id));
+    logAudit('QUOTATION_DELETED', 'Sales', id, `Deleted quotation`);
+    return true;
+  };
+
+  // 8. Void / Cancel Sales Invoice
+  const voidSaleInvoice = (invoiceNo: string, reason?: string) => {
+    const sale = sales.find(s => s.invoiceNo === invoiceNo);
+    if (!sale) return { success: false, error: 'Sale invoice not found' };
+    if (sale.status === 'CANCELLED') return { success: false, error: 'Invoice is already cancelled' };
+
+    // Mark invoice cancelled
+    setSales(prev => prev.map(s => s.invoiceNo === invoiceNo ? {
+      ...s,
+      status: 'CANCELLED',
+      notes: `${s.notes ? s.notes + ' | ' : ''}CANCELLED: ${reason || 'Voided by user'}`
+    } : s));
+
+    // Restore sold IMEIs back to IN_STOCK
+    const soldImeis = sale.items.flatMap(it => it.imeiList || []);
+    if (soldImeis.length > 0) {
+      setImeis(prev => prev.map(im => {
+        if (soldImeis.includes(im.imei1)) {
+          return {
+            ...im,
+            status: 'IN_STOCK',
+            customerName: undefined,
+            saleDate: undefined,
+            saleInvoiceId: undefined
+          };
+        }
+        return im;
+      }));
+    }
+
+    // Restore product physical stock
+    sale.items.forEach(it => {
+      setProducts(prev => prev.map(p => {
+        if (p.id !== it.productId) return p;
+        return {
+          ...p,
+          variants: p.variants.map(v => {
+            if (v.id !== it.variantId) return v;
+            return { ...v, currentStock: v.currentStock + it.quantity };
+          })
+        };
+      }));
+    });
+
+    // Reverse customer due if any
+    if (sale.dueAmount > 0) {
+      setCustomers(prev => prev.map(c => {
+        if (c.id !== sale.customerId) return c;
+        return {
+          ...c,
+          currentDue: Math.max(0, c.currentDue - sale.dueAmount),
+          totalPurchased: Math.max(0, c.totalPurchased - sale.grandTotal)
+        };
+      }));
+    }
+
+    logAudit('SALE_INVOICE_CANCELLED', 'Sales', invoiceNo, `Voided invoice ${invoiceNo}. Restored ${soldImeis.length} devices to inventory. Reason: ${reason || 'User voided'}`);
+    return { success: true };
+  };
+
+  // IMEI CRUD
+  const updateIMEI = (imei1: string, updated: Partial<ProductIMEI>) => {
+    setImeis(prev => prev.map(im => {
+      if (im.imei1 !== imei1) return im;
+      return { ...im, ...updated };
+    }));
+    logAudit('IMEI_UPDATED', 'IMEI', imei1, `Updated IMEI device details`);
+    return true;
+  };
+
+  const deleteIMEI = (imei1: string) => {
+    const im = imeis.find(i => i.imei1 === imei1);
+    if (!im) return { success: false, error: 'IMEI not found' };
+    if (im.status === 'SOLD') {
+      return { success: false, error: 'Cannot delete sold IMEI. Please cancel the sale invoice first.' };
+    }
+    if (im.status === 'WARRANTY') {
+      return { success: false, error: 'Cannot delete IMEI under active warranty claim.' };
+    }
+
+    setImeis(prev => prev.filter(i => i.imei1 !== imei1));
+    // Decrement physical stock for corresponding variant
+    setProducts(prev => prev.map(p => {
+      if (p.id !== im.productId) return p;
+      return {
+        ...p,
+        variants: p.variants.map(v => {
+          if (v.id !== im.variantId) return v;
+          return { ...v, currentStock: Math.max(0, v.currentStock - 1) };
+        })
+      };
+    }));
+
+    logAudit('IMEI_DELETED', 'IMEI', imei1, `Deleted in-stock IMEI device ${imei1} (${im.productName})`);
+    return { success: true };
+  };
+
+  // Branch CRUD
+  const addBranch = (branchData: Omit<Branch, 'id'>) => {
+    const newId = `branch-${Date.now()}`;
+    const newBranch: Branch = {
+      ...branchData,
+      id: newId
+    };
+    setBranches(prev => [...prev, newBranch]);
+    logAudit('BRANCH_CREATED', 'Settings', newId, `Added new branch ${newBranch.name} (${newBranch.location})`);
+    return newBranch;
+  };
+
+  const updateBranch = (id: string, updated: Partial<Branch>) => {
+    setBranches(prev => prev.map(b => {
+      if (b.id !== id) return b;
+      return { ...b, ...updated };
+    }));
+    logAudit('BRANCH_UPDATED', 'Settings', id, `Updated branch details`);
+    return true;
+  };
+
+  const deleteBranch = (id: string) => {
+    if (branches.length <= 1) {
+      return { success: false, error: 'At least one operational branch is required.' };
+    }
+    const hasImeis = imeis.some(im => im.branchId === id && im.status === 'IN_STOCK');
+    if (hasImeis) {
+      return { success: false, error: 'Cannot delete branch with active in-stock inventory. Transfer devices first.' };
+    }
+    setBranches(prev => prev.filter(b => b.id !== id));
+    logAudit('BRANCH_DELETED', 'Settings', id, `Removed branch`);
+    return { success: true };
+  };
+
+  // Brand CRUD
+  const addBrand = (name: string, country: string = 'International') => {
+    const newBrand: Brand = {
+      id: `brand-${Date.now()}`,
+      name: name.trim(),
+      country: country.trim(),
+      productCount: 0
+    };
+    setBrands(prev => [...prev, newBrand]);
+    logAudit('BRAND_CREATED', 'Inventory', newBrand.id, `Added brand ${newBrand.name}`);
+    return newBrand;
+  };
+
+  const deleteBrand = (id: string) => {
+    const hasProducts = products.some(p => p.brandId === id);
+    if (hasProducts) {
+      return { success: false, error: 'Cannot delete brand that has catalog products.' };
+    }
+    setBrands(prev => prev.filter(b => b.id !== id));
+    logAudit('BRAND_DELETED', 'Inventory', id, `Deleted brand`);
+    return { success: true };
+  };
+
+  // Void Purchase Bill
+  const voidPurchaseBill = (invoiceNo: string, reason?: string) => {
+    const pur = purchases.find(p => p.invoiceNo === invoiceNo);
+    if (!pur) return { success: false, error: 'Purchase bill not found' };
+    if (pur.status === 'CANCELLED') return { success: false, error: 'Bill is already cancelled' };
+
+    const purchasedImeis = pur.items.flatMap(it => (it.imeis || []).map(im => im.imei1));
+    const soldFromThisBill = imeis.filter(im => purchasedImeis.includes(im.imei1) && im.status === 'SOLD');
+    if (soldFromThisBill.length > 0) {
+      return { 
+        success: false, 
+        error: `Cannot cancel purchase bill: ${soldFromThisBill.length} phone(s) from this bill have already been sold (e.g. ${soldFromThisBill[0].imei1}).` 
+      };
+    }
+
+    setPurchases(prev => prev.map(p => p.invoiceNo === invoiceNo ? {
+      ...p,
+      status: 'CANCELLED',
+      notes: `${p.notes ? p.notes + ' | ' : ''}CANCELLED: ${reason || 'Voided by user'}`
+    } : p));
+
+    if (purchasedImeis.length > 0) {
+      setImeis(prev => prev.filter(im => !purchasedImeis.includes(im.imei1)));
+    }
+
+    pur.items.forEach(it => {
+      setProducts(prev => prev.map(p => {
+        if (p.id !== it.productId) return p;
+        return {
+          ...p,
+          variants: p.variants.map(v => {
+            if (v.id !== it.variantId) return v;
+            return { ...v, currentStock: Math.max(0, v.currentStock - it.quantity) };
+          })
+        };
+      }));
+    });
+
+    if (pur.dueAmount > 0) {
+      setSuppliers(prev => prev.map(s => {
+        if (s.id !== pur.supplierId) return s;
+        return {
+          ...s,
+          currentPayable: Math.max(0, s.currentPayable - pur.dueAmount),
+          totalPurchased: Math.max(0, s.totalPurchased - pur.grandTotal)
+        };
+      }));
+    }
+
+    logAudit('PURCHASE_BILL_CANCELLED', 'Procurement', invoiceNo, `Voided purchase bill ${invoiceNo}. Removed ${purchasedImeis.length} devices from stock. Reason: ${reason || 'Voided'}`);
+    return { success: true };
+  };
+
   // 9. QUOTATIONS
   const createQuotation = (data: {
     customerId: string;
@@ -1840,8 +2277,35 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateWarrantyStatus,
       performDailyClosing,
       addProduct,
+      updateProduct,
+      deleteProduct,
       addCustomer,
+      updateCustomer,
+      deleteCustomer,
       addSupplier,
+      updateSupplier,
+      deleteSupplier,
+      updateExpense,
+      deleteExpense,
+      updateWarrantyClaim,
+      deleteWarrantyClaim,
+      addCashAccount,
+      updateCashAccount,
+      deleteCashAccount,
+      addBankAccount,
+      updateBankAccount,
+      deleteBankAccount,
+      updateQuotation,
+      deleteQuotation,
+      voidSaleInvoice,
+      updateIMEI,
+      deleteIMEI,
+      addBranch,
+      updateBranch,
+      deleteBranch,
+      addBrand,
+      deleteBrand,
+      voidPurchaseBill,
       resetToDemoData,
       globalSearch
     }}>

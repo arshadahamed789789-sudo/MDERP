@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Building, Search, Plus, Filter, Wallet, ArrowUpRight, 
-  FileText, Check, X, Phone, Landmark
+  FileText, Check, X, Phone, Landmark, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { Supplier } from '../../types/erp';
+import { EditSupplierModal } from './EditSupplierModal';
 
 export const SupplierManager: React.FC = () => {
   const { 
@@ -33,6 +34,7 @@ export const SupplierManager: React.FC = () => {
   const [newMobile, setNewMobile] = useState('');
   const [newAddress, setNewAddress] = useState('');
   const [newBankInfo, setNewBankInfo] = useState('');
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
   const filteredSuppliers = suppliers.filter(s => {
     const q = searchTerm.toLowerCase();
@@ -210,7 +212,18 @@ export const SupplierManager: React.FC = () => {
               {/* Profile Card */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900">{selectedSupplier.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-base text-slate-900">{selectedSupplier.name}</h3>
+                    <button
+                      type="button"
+                      onClick={() => setEditingSupplier(selectedSupplier)}
+                      className="px-2 py-0.5 bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-2xs"
+                      title="Edit Supplier Profile"
+                    >
+                      <Pencil className="w-3 h-3 text-blue-600" />
+                      <span>{language === 'bn' ? 'এডিট' : 'Edit'}</span>
+                    </button>
+                  </div>
                   <p className="text-xs text-slate-600 font-medium">{selectedSupplier.company}</p>
                   <p className="text-xs text-slate-500 mt-1">
                     Contact: {selectedSupplier.contactPerson} ({selectedSupplier.mobile}) • {selectedSupplier.address}
@@ -488,6 +501,17 @@ export const SupplierManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Supplier Modal */}
+      <EditSupplierModal
+        isOpen={!!editingSupplier}
+        supplier={editingSupplier}
+        onClose={() => setEditingSupplier(null)}
+        onDeleteSuccess={() => {
+          const rem = suppliers.filter(s => s.id !== editingSupplier?.id);
+          if (rem.length > 0) setSelectedSupplierId(rem[0].id);
+        }}
+      />
     </div>
   );
 };

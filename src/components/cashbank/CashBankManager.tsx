@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { 
   Landmark, Wallet, ArrowDownRight, ArrowUpRight, CheckCircle2, 
-  AlertCircle, Plus, Calendar, Clock, DollarSign, X
+  AlertCircle, Plus, Calendar, Clock, DollarSign, X, Pencil
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate, formatDateTime } from '../../utils/formatters';
+import { AccountModal } from './AccountModal';
 
 export const CashBankManager: React.FC = () => {
   const { 
@@ -20,6 +21,10 @@ export const CashBankManager: React.FC = () => {
   const [physicalCashInput, setPhysicalCashInput] = useState(0);
   const [closingNotes, setClosingNotes] = useState('');
   const [closingSuccess, setClosingSuccess] = useState(false);
+
+  // Account Add / Edit Modal
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountModalEditing, setAccountModalEditing] = useState<{ type: 'bank' | 'cash'; data: any } | null>(null);
 
   // Aggregates
   const totalCashInDrawers = cashAccounts.reduce((acc, ca) => acc + ca.balance, 0);
@@ -60,16 +65,29 @@ export const CashBankManager: React.FC = () => {
               : 'Counter cashboxes, bank & MFS ledger balances, and physical drawer cash closing.'}
           </p>
         </div>
-        <button
-          onClick={() => {
-            setShowClosingModal(true);
-            setPhysicalCashInput(86750); // realistic prefill
-          }}
-          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
-        >
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{language === 'bn' ? 'আজকের ক্যাশ ক্লোজিং করুন' : 'Perform Daily Closing'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={() => {
+              setAccountModalEditing(null);
+              setShowAccountModal(true);
+            }}
+            className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{language === 'bn' ? '+ নতুন একাউন্ট' : '+ Add Account'}</span>
+          </button>
+          <button
+            onClick={() => {
+              setShowClosingModal(true);
+              setPhysicalCashInput(86750); // realistic prefill
+            }}
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>{language === 'bn' ? 'আজকের ক্যাশ ক্লোজিং করুন' : 'Perform Daily Closing'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -141,8 +159,21 @@ export const CashBankManager: React.FC = () => {
                         Type: {ca.type}
                       </span>
                     </div>
-                    <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
-                      <Wallet className="w-4 h-4" />
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountModalEditing({ type: 'cash', data: ca });
+                          setShowAccountModal(true);
+                        }}
+                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition"
+                        title="Edit Cash Drawer"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-emerald-600" />
+                      </button>
+                      <div className="p-2 bg-emerald-50 text-emerald-700 rounded-lg">
+                        <Wallet className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
@@ -168,9 +199,22 @@ export const CashBankManager: React.FC = () => {
                       <h4 className="font-bold text-xs text-slate-900 truncate max-w-[150px]">{ba.bankName}</h4>
                       <p className="text-[11px] text-slate-500 font-mono mt-0.5">{ba.accountNumber}</p>
                     </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-50 text-blue-700">
-                      {ba.type}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountModalEditing({ type: 'bank', data: ba });
+                          setShowAccountModal(true);
+                        }}
+                        className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition"
+                        title="Edit Account Details"
+                      >
+                        <Pencil className="w-3.5 h-3.5 text-blue-600" />
+                      </button>
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-50 text-blue-700">
+                        {ba.type}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-2 truncate">Title: {ba.accountName}</p>
                   <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
@@ -412,6 +456,16 @@ export const CashBankManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Account Add / Edit Modal */}
+      <AccountModal
+        isOpen={showAccountModal}
+        accountToEdit={accountModalEditing}
+        onClose={() => {
+          setShowAccountModal(false);
+          setAccountModalEditing(null);
+        }}
+      />
     </div>
   );
 };

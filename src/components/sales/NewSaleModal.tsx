@@ -70,6 +70,10 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
   const [creditLimitApproved, setCreditLimitApproved] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Barcode / IMEI Gun Scanner State
+  const [scannerInput, setScannerInput] = useState('');
+  const [scanSuccessMessage, setScanSuccessMessage] = useState('');
+
   // Reset or initialize on product selection
   const activeProduct = products.find(p => p.id === selectedProductId);
   const activeVariant = activeProduct?.variants.find(v => v.id === selectedVariantId);
@@ -92,6 +96,98 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
   }, [selectedCustomerId, selectedVariantId]);
 
   if (!isOpen) return null;
+
+  // Handle Quick IMEI / Barcode Gun Scan
+  const handleQuickScan = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const query = scannerInput.trim();
+      if (!query) return;
+
+      // Find in-stock IMEI in current branch
+      const matchedImei = imeis.find(i => 
+        (i.imei1 === query || i.imei2 === query || i.serialNumber === query) &&
+        i.branchId === branchId &&
+        i.status === 'IN_STOCK'
+      );
+
+      if (!matchedImei) {
+        const alreadyInCart = cartItems.some(ci => ci.imeiList.includes(query));
+        if (alreadyInCart) {
+          setErrorMessage(`IMEI ${query} is already in the sales cart.`);
+        } else {
+          setErrorMessage(`IMEI / Barcode ${query} not found in this branch's stock or already sold.`);
+        }
+        return;
+      }
+
+      const prod = products.find(p => p.id === matchedImei.productId);
+      const variant = prod?.variants.find(v => v.id === matchedImei.variantId);
+      if (!prod || !variant) {
+        setErrorMessage(`Product details not found for scanned IMEI ${query}`);
+        return;
+      }
+
+      const price = selectedCustomer ? getPriceForCustomer(variant, selectedCustomer.priceLevel) : variant.retailPrice;
+
+      const existingIndex = cartItems.findIndex(ci => ci.productId === prod.id && ci.variantId === variant.id);
+
+      if (existingIndex >= 0) {
+        const existing = cartItems[existingIndex];
+        if (existing.imeiList.includes(matchedImei.imei1)) {
+          setErrorMessage(`IMEI ${matchedImei.imei1} is already in the cart.`);
+          return;
+        }
+        const updated = [...cartItems];
+        const newImeis = [...existing.imeiList, matchedImei.imei1];
+        const newQty = newImeis.length;
+        updated[existingIndex] = {
+          ...existing,
+          imeiList: newImeis,
+          quantity: newQty,
+          total: (existing.unitPrice * newQty) - existing.discount
+        };
+        setCartItems(updated);
+      } else {
+        const newItem: SaleItem = {
+          productId: prod.id,
+          variantId: variant.id,
+          productName: `${prod.brandName} ${prod.model}`,
+          variantName: variant.storage ? `${variant.storage} - ${variant.color}` : variant.color,
+          imeiList: [matchedImei.imei1],
+          quantity: 1,
+          unitPrice: price,
+          unitCost: variant.purchasePrice,
+          discount: 0,
+          total: price
+        };
+        setCartItems(prev => [...prev, newItem]);
+      }
+
+      // Audio feedback
+      try {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        const audioCtx = new AudioContextClass();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1760, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+      } catch {
+        // audio ignored
+      }
+
+      setScanSuccessMessage(`Scanned & Added: ${prod.brandName} ${prod.model} (${matchedImei.imei1})!`);
+      setTimeout(() => setScanSuccessMessage(''), 3000);
+      setScannerInput('');
+      setErrorMessage('');
+    }
+  };
 
   // Add Item to Cart
   const handleAddItem = () => {
@@ -336,6 +432,42 @@ export const NewSaleModal: React.FC<NewSaleModalProps> = ({
                 <span>Select Device or Accessory to Add</span>
               </span>
               <span className="text-[11px] text-slate-500">Auto-applies customer pricing level</span>
+            </div>
+
+            {/* Quick Barcode / IMEI Scanner Input */}
+            <div className="p-3 bg-white border-2 border-dashed border-emerald-500 rounded-xl space-y-1.5 shadow-xs">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                  <Scan className="w-4 h-4 text-emerald-600 animate-pulse" />
+                  <span>{language === 'bn' ? 'বারকোড স্ক্যানার গান / আইএমইআই কুইক স্ক্যান' : 'Barcode Gun / Quick IMEI Scanner'}</span>
+                </label>
+                <span className="text-[10px] text-slate-400 font-mono">Press ENTER or scan device box</span>
+              </div>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={scannerInput}
+                  onChange={(e) => setScannerInput(e.target.value)}
+                  onKeyDown={handleQuickScan}
+                  placeholder="📷 Scan barcode or type 15-digit IMEI number and press Enter..."
+                  className="w-full text-xs font-mono font-bold p-2.5 pl-3 pr-20 bg-slate-50 border border-slate-300 rounded-lg focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQuickScan({ key: 'Enter', preventDefault: () => {} } as any)}
+                  disabled={!scannerInput.trim()}
+                  className="absolute right-1.5 top-1.5 bottom-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white rounded-md text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Scan</span>
+                </button>
+              </div>
+              {scanSuccessMessage && (
+                <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>{scanSuccessMessage}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
