@@ -1,0 +1,6 @@
+{
+  "name": "MOBILE D-ERP",
+  "description": "Specialized Retail & Wholesale Mobile Phone Business Management & Accounting ERP for Bangladesh with IMEI tracking, customer & supplier ledgers, double-entry accounting, and multi-branch operations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
