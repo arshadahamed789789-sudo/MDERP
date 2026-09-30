@@ -5,7 +5,8 @@ import {
   Expense, SaleInvoice, PurchaseInvoice, ChartOfAccount, JournalEntry,
   CustomerLedgerEntry, SupplierLedgerEntry, AuditLog, DailyClosingRecord,
   BusinessConfig, WarrantyClaim, PaymentRecord, StockTransfer,
-  Quotation, SalesReturn, PurchaseReturn, StockAdjustment, SalesReturnItem, PurchaseReturnItem
+  Quotation, SalesReturn, PurchaseReturn, StockAdjustment, SalesReturnItem, PurchaseReturnItem,
+  RegisterUserData
 } from '../types/erp';
 import { 
   initialBusinessConfig, initialBranches, initialUsers, initialBrands,
@@ -19,6 +20,14 @@ import {
 } from './seedData';
 
 interface ERPContextType {
+  // Auth & RBAC
+  isAuthenticated: boolean;
+  login: (identifier: string, password?: string) => { success: boolean; user?: User; error?: string };
+  registerUser: (data: RegisterUserData) => { success: boolean; user?: User; error?: string };
+  logout: () => void;
+  addUser: (data: RegisterUserData) => { success: boolean; user?: User; error?: string };
+  deleteUser: (id: string) => { success: boolean; error?: string };
+
   // Config & Context
   businessConfig: BusinessConfig;
   updateBusinessConfig: (config: Partial<BusinessConfig>) => void;
@@ -307,8 +316,17 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [branches, setBranches] = useState<Branch[]>(() => 
     loadState('branches', initialBranches)
   );
-  const [users] = useState<User[]>(initialUsers);
-  const [currentUser, setCurrentUser] = useState<User>(initialUsers[0]);
+  const [users, setUsers] = useState<User[]>(() => 
+    loadState('users', initialUsers)
+  );
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const saved = loadState<User | null>('current_user', null);
+    if (saved && saved.id) return saved;
+    return initialUsers[0];
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return loadState('is_authenticated', true);
+  });
   const [currentBranchId, setCurrentBranchId] = useState<string>('all');
   const [language, setLanguage] = useState<'bn' | 'en'>('en');
 
@@ -342,6 +360,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveState('config', businessConfig), [businessConfig]);
   useEffect(() => saveState('biz_type', businessType), [businessType]);
   useEffect(() => saveState('branches', branches), [branches]);
+  useEffect(() => saveState('users', users), [users]);
+  useEffect(() => saveState('current_user', currentUser), [currentUser]);
+  useEffect(() => saveState('is_authenticated', isAuthenticated), [isAuthenticated]);
   useEffect(() => saveState('brands', brands), [brands]);
   useEffect(() => saveState('categories', categories), [categories]);
   useEffect(() => saveState('products', products), [products]);
@@ -1762,6 +1783,132 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
+  // AUTHENTICATION & USER MANAGEMENT
+  const login = (identifier: string, password?: string): { success: boolean; user?: User; error?: string } => {
+    const cleanId = identifier.trim().toLowerCase();
+    const cleanPhoneDigits = identifier.replace(/[^0-9]/g, '');
+
+    const user = users.find(u => 
+      u.username.toLowerCase() === cleanId || 
+      u.email.toLowerCase() === cleanId || 
+      (cleanPhoneDigits.length >= 10 && u.phone.replace(/[^0-9]/g, '') === cleanPhoneDigits)
+    );
+
+    if (!user) {
+      return { 
+        success: false, 
+        error: language === 'bn' 
+          ? 'ব্যবহারকারী পাওয়া যায়নি। ইউজারনেম বা ইমেইল সঠিক দিন অথবা নতুন সাইন আপ করুন।' 
+          : 'User account not found. Please check your username/email or sign up.' 
+      };
+    }
+
+    if (password !== undefined && password !== null && password !== '') {
+      if (user.password && user.password !== password) {
+        return { 
+          success: false, 
+          error: language === 'bn' 
+            ? 'পাসওয়ার্ড ভুল হয়েছে। সঠিক পাসওয়ার্ড দিয়ে চেষ্টা করুন।' 
+            : 'Incorrect password. Please verify and try again.' 
+        };
+      }
+    }
+
+    setCurrentUser(user);
+    setIsAuthenticated(true);
+    saveState('current_user', user);
+    saveState('is_authenticated', true);
+
+    logAudit('USER_LOGIN', 'Auth', user.id, `User ${user.name} (${user.role}) logged in successfully.`);
+    return { success: true, user };
+  };
+
+  const registerUser = (data: RegisterUserData): { success: boolean; user?: User; error?: string } => {
+    if (!data.name.trim()) {
+      return { success: false, error: language === 'bn' ? 'অনুগ্রহ করে পুরো নাম লিখুন।' : 'Please enter full name.' };
+    }
+    if (!data.username.trim()) {
+      return { success: false, error: language === 'bn' ? 'ইউজারনেম লিখুন।' : 'Please enter username.' };
+    }
+    if (!data.password || data.password.length < 4) {
+      return { success: false, error: language === 'bn' ? 'পাসওয়ার্ড কমপক্ষে ৪ অক্ষরের হতে হবে।' : 'Password must be at least 4 characters.' };
+    }
+
+    const cleanUsername = data.username.trim().toLowerCase();
+    const cleanEmail = data.email.trim().toLowerCase();
+
+    if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
+      return { success: false, error: language === 'bn' ? 'এই ইউজারনেমটি আগে থেকেই নেওয়া হয়েছে।' : 'Username is already taken. Please choose another.' };
+    }
+    if (cleanEmail && users.some(u => u.email.toLowerCase() === cleanEmail)) {
+      return { success: false, error: language === 'bn' ? 'এই ইমেইল দিয়ে আগেই অ্যাকাউন্ট খোলা হয়েছে।' : 'An account with this email already exists.' };
+    }
+
+    const newUser: User = {
+      id: `usr-${Date.now()}`,
+      name: data.name.trim(),
+      username: cleanUsername,
+      password: data.password,
+      role: data.role || 'Salesman',
+      branchId: data.branchId || branches[0]?.id || 'br-01',
+      phone: data.phone.trim() || '01700-000000',
+      email: cleanEmail || `${cleanUsername}@mobiled-erp.bd`,
+      createdAt: new Date().toISOString()
+    };
+
+    setUsers(prev => [...prev, newUser]);
+    setCurrentUser(newUser);
+    setIsAuthenticated(true);
+    saveState('current_user', newUser);
+    saveState('is_authenticated', true);
+
+    logAudit('USER_REGISTERED', 'Auth', newUser.id, `New user ${newUser.name} registered with role ${newUser.role} in branch ${newUser.branchId}.`);
+    return { success: true, user: newUser };
+  };
+
+  const logout = () => {
+    logAudit('USER_LOGOUT', 'Auth', currentUser.id, `User ${currentUser.name} (${currentUser.role}) logged out.`);
+    setIsAuthenticated(false);
+    saveState('is_authenticated', false);
+  };
+
+  const addUser = (data: RegisterUserData): { success: boolean; user?: User; error?: string } => {
+    if (!data.name.trim() || !data.username.trim()) {
+      return { success: false, error: 'Name and username are required.' };
+    }
+    const cleanUsername = data.username.trim().toLowerCase();
+    if (users.some(u => u.username.toLowerCase() === cleanUsername)) {
+      return { success: false, error: 'Username already taken.' };
+    }
+    const newUser: User = {
+      id: `usr-${Date.now()}`,
+      name: data.name.trim(),
+      username: cleanUsername,
+      password: data.password || 'password123',
+      role: data.role || 'Salesman',
+      branchId: data.branchId || branches[0]?.id || 'br-01',
+      phone: data.phone.trim() || '01700-000000',
+      email: data.email.trim() || `${cleanUsername}@mobiled-erp.bd`,
+      createdAt: new Date().toISOString()
+    };
+    setUsers(prev => [...prev, newUser]);
+    logAudit('USER_CREATED', 'Admin', newUser.id, `Admin created user ${newUser.name} (${newUser.role}).`);
+    return { success: true, user: newUser };
+  };
+
+  const deleteUser = (id: string): { success: boolean; error?: string } => {
+    if (users.length <= 1) {
+      return { success: false, error: 'Cannot delete the only remaining user.' };
+    }
+    if (currentUser.id === id) {
+      return { success: false, error: 'Cannot delete the currently active user.' };
+    }
+    const u = users.find(user => user.id === id);
+    setUsers(prev => prev.filter(user => user.id !== id));
+    logAudit('USER_DELETED', 'Admin', id, `Deleted user ${u?.name || id}`);
+    return { success: true };
+  };
+
   // 9. QUOTATIONS
   const createQuotation = (data: {
     customerId: string;
@@ -2156,6 +2303,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       businessConfig,
       businessType,
       branches,
+      users,
       brands,
       categories,
       products,
@@ -2227,6 +2375,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (Array.isArray(data.branches) && data.branches.length > 0) {
         setBranches(data.branches);
         saveState('branches', data.branches);
+      }
+      if (Array.isArray(data.users) && data.users.length > 0) {
+        setUsers(data.users);
+        saveState('users', data.users);
       }
       if (Array.isArray(data.brands)) {
         setBrands(data.brands);
@@ -2532,6 +2684,12 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <ERPContext.Provider value={{
+      isAuthenticated,
+      login,
+      registerUser,
+      logout,
+      addUser,
+      deleteUser,
       businessConfig,
       updateBusinessConfig,
       businessType,

@@ -22,6 +22,7 @@ import { AccountingManager } from './components/accounting/AccountingManager';
 import { ReportsManager } from './components/reports/ReportsManager';
 import { AuditLogManager } from './components/audit/AuditLogManager';
 import { SettingsManager } from './components/settings/SettingsManager';
+import { AuthScreen } from './components/auth/AuthScreen';
 
 import { UserRole } from './types/erp';
 import { ShieldAlert, UserCheck, ArrowRight } from 'lucide-react';
@@ -36,9 +37,14 @@ const ROLE_TAB_PERMISSIONS: Record<UserRole, ActiveTab[]> = {
 };
 
 const ERPAppContent: React.FC = () => {
-  const { currentUser, setCurrentUser, users, language } = useERP();
+  const { currentUser, setCurrentUser, users, language, isAuthenticated } = useERP();
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // If not authenticated, display the Sign In / Sign Up portal
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
 
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);

@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Truck, Smartphone, Boxes, Users,
   Building, Wallet, Landmark, Receipt, ShieldAlert, BookOpen,
-  BarChart3, History, Settings, ChevronRight, X
+  BarChart3, History, Settings, ChevronRight, X, LogOut
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 
@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpen,
   onCloseMobile
 }) => {
-  const { language, currentUser, imeis, customers, warrantyClaims } = useERP();
+  const { language, currentUser, imeis, customers, warrantyClaims, logout } = useERP();
 
   const inStockImeis = imeis.filter(i => i.status === 'IN_STOCK').length;
   const customersWithDue = customers.filter(c => c.currentDue > 0).length;
@@ -220,17 +220,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </div>
 
-        {/* User Card at bottom */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/40">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center font-bold text-white text-xs">
-              {currentUser.name.charAt(0)}
+        {/* User Card & Logout at bottom */}
+        <div className="p-3 border-t border-slate-800 bg-slate-950/60 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-emerald-700 flex items-center justify-center font-bold text-white text-xs shrink-0 shadow-sm">
+                {currentUser.name.charAt(0)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
+                <p className="text-[10px] text-emerald-400 font-medium truncate">{currentUser.role}</p>
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
-              <p className="text-[10px] text-emerald-400 font-medium truncate">{currentUser.role}</p>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?' : 'Are you sure you want to log out?')) {
+                  logout();
+                  if (onCloseMobile) onCloseMobile();
+                }
+              }}
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition shrink-0"
+              title={language === 'bn' ? 'লগআউট করুন' : 'Sign Out'}
+              aria-label="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?' : 'Are you sure you want to log out?')) {
+                logout();
+                if (onCloseMobile) onCloseMobile();
+              }
+            }}
+            className="w-full py-1.5 px-2 bg-slate-800/80 hover:bg-rose-600 hover:text-white text-slate-300 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5 group border border-slate-700/60"
+          >
+            <LogOut className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition" />
+            <span>{language === 'bn' ? 'লগআউট (Sign Out)' : 'Sign Out / Logout'}</span>
+          </button>
         </div>
       </aside>
     </>

@@ -53,10 +53,22 @@ export interface User {
   id: string;
   name: string;
   username: string;
+  password?: string;
   role: UserRole;
   branchId: string;
   phone: string;
   email: string;
+  createdAt?: string;
+}
+
+export interface RegisterUserData {
+  name: string;
+  username: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: UserRole;
+  branchId: string;
 }
 
 export interface Brand {

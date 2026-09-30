@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Search, Bell, Plus, Building2, UserCheck, Smartphone, 
-  ChevronDown, Globe, Store, AlertTriangle, Menu
+  ChevronDown, Globe, Store, AlertTriangle, Menu, LogOut
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { UserRole, BusinessType } from '../../types/erp';
@@ -41,7 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
     setLanguage,
     imeis,
     customers,
-    warrantyClaims
+    warrantyClaims,
+    logout
   } = useERP();
 
   const [showQuickMenu, setShowQuickMenu] = useState(false);
@@ -247,6 +248,21 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </button>
               ))}
+              <div className="p-1 border-t border-slate-700/80 mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRoleMenu(false);
+                    if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?' : 'Are you sure you want to log out?')) {
+                      logout();
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-rose-500/20 text-rose-300 rounded-lg flex items-center gap-2 font-bold text-xs transition"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span>{language === 'bn' ? 'সিস্টেম থেকে লগআউট' : 'Sign Out / Logout'}</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

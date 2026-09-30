@@ -52,9 +52,20 @@ export const initialBranches: Branch[] = [
 
 export const initialUsers: User[] = [
   {
+    id: 'usr-admin',
+    name: 'Admin User',
+    username: 'admin',
+    password: 'password123',
+    role: 'Super Admin',
+    branchId: 'br-01',
+    phone: '01700-112233',
+    email: 'admin@mobiled-erp.bd'
+  },
+  {
     id: 'usr-1',
     name: 'Arshad Ahamed',
     username: 'owner',
+    password: 'password123',
     role: 'Business Owner',
     branchId: 'br-01',
     phone: '01711-234567',
@@ -64,6 +75,7 @@ export const initialUsers: User[] = [
     id: 'usr-2',
     name: 'Mahbubur Rahman',
     username: 'manager',
+    password: 'password123',
     role: 'Manager',
     branchId: 'br-01',
     phone: '01812-445566',
@@ -73,6 +85,7 @@ export const initialUsers: User[] = [
     id: 'usr-3',
     name: 'Kazi Farhan',
     username: 'accountant',
+    password: 'password123',
     role: 'Accountant',
     branchId: 'br-01',
     phone: '01911-332211',
@@ -82,6 +95,7 @@ export const initialUsers: User[] = [
     id: 'usr-4',
     name: 'Sabbir Ahmed',
     username: 'salesman',
+    password: 'password123',
     role: 'Salesman',
     branchId: 'br-01',
     phone: '01611-998877',
@@ -91,6 +105,7 @@ export const initialUsers: User[] = [
     id: 'usr-5',
     name: 'Rafiqul Islam',
     username: 'storekeeper',
+    password: 'password123',
     role: 'Store Keeper',
     branchId: 'wh-01',
     phone: '01715-112233',
