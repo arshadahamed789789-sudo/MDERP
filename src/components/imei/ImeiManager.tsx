@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, Search, Filter, ShieldCheck, CheckCircle2, 
   ArrowRight, Clock, User, Building, Truck, AlertCircle, Tag, Download, Pencil
@@ -10,14 +10,26 @@ import { BarcodeLabelModal } from './BarcodeLabelModal';
 import { EditImeiModal } from './EditImeiModal';
 import { exportToCSV } from '../../utils/exportToCsv';
 
-export const ImeiManager: React.FC = () => {
+interface ImeiManagerProps {
+  initialSearchQuery?: string;
+}
+
+export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) => {
   const { imeis, language, currentBranchId } = useERP();
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ImeiStatus>('ALL');
   const [selectedImei, setSelectedImei] = useState<ProductIMEI | null>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeTargetImei, setBarcodeTargetImei] = useState<ProductIMEI | null>(null);
   const [editingImei, setEditingImei] = useState<ProductIMEI | null>(null);
+
+  useEffect(() => {
+    if (initialSearchQuery) {
+      setSearchQuery(initialSearchQuery);
+      const match = imeis.find(i => i.imei1 === initialSearchQuery || i.imei2 === initialSearchQuery);
+      if (match) setSelectedImei(match);
+    }
+  }, [initialSearchQuery, imeis]);
 
   const filteredImeis = imeis
     .filter(i => currentBranchId === 'all' || i.branchId === currentBranchId)
@@ -215,19 +227,31 @@ export const ImeiManager: React.FC = () => {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setBarcodeTargetImei(im);
+                                setShowBarcodeModal(true);
+                              }}
+                              className="p-1 hover:bg-emerald-50 text-slate-500 hover:text-emerald-700 rounded transition"
+                              title="Print Barcode Sticker"
+                            >
+                              <Tag className="w-3.5 h-3.5 text-emerald-600" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 setEditingImei(im);
                               }}
                               className="p-1 hover:bg-slate-200 text-slate-500 hover:text-slate-800 rounded transition"
                               title="Edit / Delete IMEI"
                             >
-                              <Pencil className="w-3 h-3 text-emerald-600" />
+                              <Pencil className="w-3 h-3 text-blue-600" />
                             </button>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedImei(im);
                               }}
-                              className="px-2 py-1 bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 rounded font-semibold text-[11px]"
+                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold text-[11px]"
                             >
                               Trace
                             </button>

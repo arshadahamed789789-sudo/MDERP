@@ -26,6 +26,7 @@ interface ERPContextType {
   registerUser: (data: RegisterUserData) => { success: boolean; user?: User; error?: string };
   logout: () => void;
   addUser: (data: RegisterUserData) => { success: boolean; user?: User; error?: string };
+  updateUser: (id: string, updated: Partial<User>) => { success: boolean; user?: User; error?: string };
   deleteUser: (id: string) => { success: boolean; error?: string };
 
   // Config & Context
@@ -241,11 +242,13 @@ interface ERPContextType {
   updateIMEI: (imei1: string, updated: Partial<ProductIMEI>) => boolean;
   deleteIMEI: (imei1: string) => { success: boolean; error?: string };
 
-  addBranch: (branch: Omit<Branch, 'id'>) => Branch;
-  updateBranch: (id: string, updated: Partial<Branch>) => boolean;
+  addBranch: (branch: Omit<Branch, 'id'>) => { success: boolean; branch?: Branch; error?: string };
+  updateBranch: (id: string, updated: Partial<Branch>) => { success: boolean; branch?: Branch; error?: string };
   deleteBranch: (id: string) => { success: boolean; error?: string };
+  setDefaultBranch: (id: string) => void;
 
-  addBrand: (name: string, country?: string) => Brand;
+  addBrand: (name: string, country?: string) => { success: boolean; brand?: Brand; error?: string };
+  updateBrand: (id: string, updated: { name: string; country?: string }) => { success: boolean; brand?: Brand; error?: string };
   deleteBrand: (id: string) => { success: boolean; error?: string };
 
   voidPurchaseBill: (invoiceNo: string, reason?: string) => { success: boolean; error?: string };
@@ -1674,59 +1677,173 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Branch CRUD
-  const addBranch = (branchData: Omit<Branch, 'id'>) => {
+  const addBranch = (branchData: Omit<Branch, 'id'>): { success: boolean; branch?: Branch; error?: string } => {
+    if (!branchData.name || !branchData.name.trim()) {
+      return { success: false, error: 'Branch / Showroom name is required.' };
+    }
+    const cleanCode = (branchData.code || `BR-${branches.length + 1}`).trim().toUpperCase();
+    if (branches.some(b => b.code.toUpperCase() === cleanCode)) {
+      return { success: false, error: `Branch code "${cleanCode}" is already in use by another branch.` };
+    }
+
     const newId = `branch-${Date.now()}`;
     const newBranch: Branch = {
       ...branchData,
-      id: newId
+      id: newId,
+      name: branchData.name.trim(),
+      code: cleanCode,
+      location: branchData.location.trim(),
+      contact: branchData.contact.trim(),
+      isDefault: branchData.isDefault || false
     };
-    setBranches(prev => [...prev, newBranch]);
-    logAudit('BRANCH_CREATED', 'Settings', newId, `Added new branch ${newBranch.name} (${newBranch.location})`);
-    return newBranch;
+
+    if (newBranch.isDefault) {
+      setBranches(prev => [...prev.map(b => ({ ...b, isDefault: false })), newBranch]);
+    } else {
+      setBranches(prev => [...prev, newBranch]);
+    }
+
+    logAudit('BRANCH_CREATED', 'Settings', newId, `Added new branch ${newBranch.name} (${newBranch.location}, code: ${newBranch.code})`);
+    return { success: true, branch: newBranch };
   };
 
-  const updateBranch = (id: string, updated: Partial<Branch>) => {
+  const updateBranch = (id: string, updated: Partial<Branch>): { success: boolean; branch?: Branch; error?: string } => {
+    const existing = branches.find(b => b.id === id);
+    if (!existing) {
+      return { success: false, error: 'Branch not found.' };
+    }
+    if (updated.code) {
+      const cleanCode = updated.code.trim().toUpperCase();
+      if (branches.some(b => b.id !== id && b.code.toUpperCase() === cleanCode)) {
+        return { success: false, error: `Branch code "${cleanCode}" already exists on another branch.` };
+      }
+    }
+
+    let updatedBranch: Branch | null = null;
     setBranches(prev => prev.map(b => {
-      if (b.id !== id) return b;
-      return { ...b, ...updated };
+      if (b.id !== id) {
+        if (updated.isDefault) return { ...b, isDefault: false };
+        return b;
+      }
+      updatedBranch = {
+        ...b,
+        ...updated,
+        name: updated.name !== undefined ? updated.name.trim() : b.name,
+        code: updated.code !== undefined ? updated.code.trim().toUpperCase() : b.code,
+        location: updated.location !== undefined ? updated.location.trim() : b.location,
+        contact: updated.contact !== undefined ? updated.contact.trim() : b.contact,
+        type: updated.type || b.type,
+        isDefault: updated.isDefault !== undefined ? updated.isDefault : b.isDefault
+      };
+      return updatedBranch;
     }));
-    logAudit('BRANCH_UPDATED', 'Settings', id, `Updated branch details`);
-    return true;
+
+    logAudit('BRANCH_UPDATED', 'Settings', id, `Updated branch details for ${existing.name}`);
+    return { success: true, branch: updatedBranch || undefined };
   };
 
-  const deleteBranch = (id: string) => {
+  const deleteBranch = (id: string): { success: boolean; error?: string } => {
     if (branches.length <= 1) {
-      return { success: false, error: 'At least one operational branch is required.' };
+      return { success: false, error: 'At least one operational branch is required for the ERP system.' };
     }
     const hasImeis = imeis.some(im => im.branchId === id && im.status === 'IN_STOCK');
     if (hasImeis) {
-      return { success: false, error: 'Cannot delete branch with active in-stock inventory. Transfer devices first.' };
+      return { 
+        success: false, 
+        error: 'Cannot delete branch with active in-stock inventory. Please transfer or sell all phones from this showroom first.' 
+      };
     }
-    setBranches(prev => prev.filter(b => b.id !== id));
-    logAudit('BRANCH_DELETED', 'Settings', id, `Removed branch`);
+
+    const branchName = branches.find(b => b.id === id)?.name || id;
+    const remainingBranches = branches.filter(b => b.id !== id);
+    const fallbackBranchId = remainingBranches[0]?.id || 'all';
+
+    // If active branch in header was deleted, reset to all
+    if (currentBranchId === id) {
+      setCurrentBranchId('all');
+    }
+
+    // Reassign any users who had this deleted branch as primary
+    setUsers(prev => prev.map(u => {
+      if (u.branchId === id) {
+        return { ...u, branchId: fallbackBranchId };
+      }
+      return u;
+    }));
+
+    setBranches(remainingBranches);
+    logAudit('BRANCH_DELETED', 'Settings', id, `Removed branch ${branchName}. Reassigned affected staff to fallback branch.`);
     return { success: true };
   };
 
+  const setDefaultBranch = (id: string) => {
+    setBranches(prev => prev.map(b => ({
+      ...b,
+      isDefault: b.id === id
+    })));
+    logAudit('BRANCH_SET_DEFAULT', 'Settings', id, `Marked branch as default primary showroom.`);
+  };
+
   // Brand CRUD
-  const addBrand = (name: string, country: string = 'International') => {
+  const addBrand = (name: string, country: string = 'International'): { success: boolean; brand?: Brand; error?: string } => {
+    const cleanName = name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Brand name is required.' };
+    }
+    if (brands.some(b => b.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Brand "${cleanName}" already exists.` };
+    }
     const newBrand: Brand = {
       id: `brand-${Date.now()}`,
-      name: name.trim(),
-      country: country.trim(),
+      name: cleanName,
+      country: country.trim() || 'International',
       productCount: 0
     };
     setBrands(prev => [...prev, newBrand]);
-    logAudit('BRAND_CREATED', 'Inventory', newBrand.id, `Added brand ${newBrand.name}`);
-    return newBrand;
+    logAudit('BRAND_CREATED', 'Inventory', newBrand.id, `Added brand ${newBrand.name} (${newBrand.country})`);
+    return { success: true, brand: newBrand };
   };
 
-  const deleteBrand = (id: string) => {
-    const hasProducts = products.some(p => p.brandId === id);
-    if (hasProducts) {
-      return { success: false, error: 'Cannot delete brand that has catalog products.' };
+  const updateBrand = (id: string, updated: { name: string; country?: string }): { success: boolean; brand?: Brand; error?: string } => {
+    const cleanName = updated.name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Brand name cannot be empty.' };
+    }
+    if (brands.some(b => b.id !== id && b.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Another brand with name "${cleanName}" already exists.` };
+    }
+    let updatedBrand: Brand | null = null;
+    setBrands(prev => prev.map(b => {
+      if (b.id !== id) return b;
+      updatedBrand = {
+        ...b,
+        name: cleanName,
+        country: updated.country ? updated.country.trim() : b.country
+      };
+      return updatedBrand;
+    }));
+
+    // Cascade update product catalog so product.brandName stays synced!
+    setProducts(prev => prev.map(p => {
+      if (p.brandId !== id) return p;
+      return { ...p, brandName: cleanName };
+    }));
+
+    logAudit('BRAND_UPDATED', 'Inventory', id, `Updated brand to ${cleanName}`);
+    return { success: true, brand: updatedBrand || undefined };
+  };
+
+  const deleteBrand = (id: string): { success: boolean; error?: string } => {
+    const target = brands.find(b => b.id === id);
+    const linkedProducts = products.filter(p => p.brandId === id);
+    if (linkedProducts.length > 0) {
+      return { 
+        success: false, 
+        error: `Cannot delete brand "${target?.name || id}". It is associated with ${linkedProducts.length} product(s) in catalog (e.g. ${linkedProducts[0].model}). Reassign or delete those products first.` 
+      };
     }
     setBrands(prev => prev.filter(b => b.id !== id));
-    logAudit('BRAND_DELETED', 'Inventory', id, `Deleted brand`);
+    logAudit('BRAND_DELETED', 'Inventory', id, `Deleted brand ${target?.name || id}`);
     return { success: true };
   };
 
@@ -1894,6 +2011,49 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUsers(prev => [...prev, newUser]);
     logAudit('USER_CREATED', 'Admin', newUser.id, `Admin created user ${newUser.name} (${newUser.role}).`);
     return { success: true, user: newUser };
+  };
+
+  const updateUser = (id: string, updated: Partial<User>): { success: boolean; user?: User; error?: string } => {
+    const existing = users.find(u => u.id === id);
+    if (!existing) {
+      return { success: false, error: 'User account not found.' };
+    }
+
+    if (updated.username) {
+      const cleanUsername = updated.username.trim().toLowerCase();
+      if (users.some(u => u.id !== id && u.username.toLowerCase() === cleanUsername)) {
+        return { success: false, error: 'Username is already taken by another staff member.' };
+      }
+    }
+
+    if (updated.email) {
+      const cleanEmail = updated.email.trim().toLowerCase();
+      if (users.some(u => u.id !== id && u.email.toLowerCase() === cleanEmail)) {
+        return { success: false, error: 'Email address is already in use by another user.' };
+      }
+    }
+
+    const finalUser: User = {
+      ...existing,
+      ...updated,
+      name: updated.name !== undefined ? updated.name.trim() : existing.name,
+      username: updated.username !== undefined ? updated.username.trim().toLowerCase() : existing.username,
+      email: updated.email !== undefined ? updated.email.trim().toLowerCase() : existing.email,
+      phone: updated.phone !== undefined ? updated.phone.trim() : existing.phone,
+      role: updated.role || existing.role,
+      branchId: updated.branchId || existing.branchId,
+      password: (updated.password && updated.password.trim().length > 0) ? updated.password.trim() : existing.password
+    };
+
+    setUsers(prev => prev.map(u => u.id === id ? finalUser : u));
+
+    if (currentUser.id === id) {
+      setCurrentUser(finalUser);
+      saveState('current_user', finalUser);
+    }
+
+    logAudit('USER_UPDATED', 'Admin', id, `Updated staff profile for ${existing.name} (${finalUser.role})`);
+    return { success: true, user: finalUser };
   };
 
   const deleteUser = (id: string): { success: boolean; error?: string } => {
@@ -2689,6 +2849,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       registerUser,
       logout,
       addUser,
+      updateUser,
       deleteUser,
       businessConfig,
       updateBusinessConfig,
@@ -2770,7 +2931,9 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addBranch,
       updateBranch,
       deleteBranch,
+      setDefaultBranch,
       addBrand,
+      updateBrand,
       deleteBrand,
       voidPurchaseBill,
       restoreFromBackup,

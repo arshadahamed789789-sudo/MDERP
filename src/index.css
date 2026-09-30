@@ -27,7 +27,8 @@
   body * {
     visibility: hidden;
   }
-  #printable-invoice, #printable-invoice * {
+  #printable-invoice, #printable-invoice *,
+  #printable-barcode, #printable-barcode * {
     visibility: visible;
   }
   #printable-invoice {
@@ -39,5 +40,25 @@
     padding: 20px;
     box-shadow: none;
     border: none;
+    background: white !important;
+  }
+  #printable-barcode {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+    border: none;
+    background: white !important;
+  }
+  .barcode-sticker-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .thermal-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }

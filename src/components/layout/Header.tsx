@@ -277,6 +277,20 @@ export const Header: React.FC<HeaderProps> = ({
           <span>{language === 'en' ? 'বাং' : 'EN'}</span>
         </button>
 
+        {/* Direct Link to Sign In / Sign Up Screen */}
+        <button
+          onClick={() => {
+            if (window.confirm(language === 'bn' ? 'সাইন ইন / সাইন আপ পোর্টালে যেতে লগআউট করতে চান?' : 'Sign out to go to the Sign In / Sign Up portal?')) {
+              logout();
+            }
+          }}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-rose-950/40 text-xs font-semibold rounded-lg border border-slate-700 hover:border-rose-500/50 text-rose-300 transition"
+          title={language === 'bn' ? 'সাইন ইন / সাইন আপ পোর্টাল' : 'Sign In / Sign Up Portal'}
+        >
+          <LogOut className="w-3.5 h-3.5 text-rose-400" />
+          <span className="hidden lg:inline">{language === 'bn' ? 'সাইন ইন / সাইন আপ' : 'Sign In / Sign Up'}</span>
+        </button>
+
         {/* Notification Bell */}
         <div className="relative">
           <button

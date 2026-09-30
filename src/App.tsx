@@ -52,6 +52,7 @@ const ERPAppContent: React.FC = () => {
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false);
   const [viewingInvoiceNo, setViewingInvoiceNo] = useState<string | null>(null);
+  const [selectedImeiSearch, setSelectedImeiSearch] = useState<string>('');
 
   // Auto-redirect if switched role does not have permission for activeTab
   useEffect(() => {
@@ -182,7 +183,7 @@ const ERPAppContent: React.FC = () => {
             />
           )}
 
-          {activeTab === 'imei' && <ImeiManager />}
+          {activeTab === 'imei' && <ImeiManager initialSearchQuery={selectedImeiSearch} />}
 
           {activeTab === 'inventory' && <InventoryManager />}
 
@@ -225,6 +226,7 @@ const ERPAppContent: React.FC = () => {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
         onSelectImei={(imei) => {
+          setSelectedImeiSearch(imei);
           setActiveTab('imei');
         }}
         onSelectCustomer={(custId) => {
