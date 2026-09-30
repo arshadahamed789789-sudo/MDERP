@@ -75,11 +75,27 @@ export const ReportsManager: React.FC = () => {
     };
   });
 
-  // 3. Salesman Performance
-  const salesmanMetrics = [
-    { name: 'Sabbir Ahmed (Salesman)', salesCount: 1, revenue: 76000, commissionRate: '1.0%', commissionEarned: 760 },
-    { name: 'Mahbubur Rahman (Manager)', salesCount: 1, revenue: 166500, commissionRate: '0.8%', commissionEarned: 1332 }
-  ];
+  // 3. Salesman Performance (Computed live from sales invoices)
+  const salesmanMap = new Map<string, { name: string; salesCount: number; revenue: number }>();
+  sales.forEach(s => {
+    if (s.status === 'CANCELLED') return;
+    const name = s.salesmanName || 'General Staff';
+    const existing = salesmanMap.get(name) || { name, salesCount: 0, revenue: 0 };
+    existing.salesCount += 1;
+    existing.revenue += s.grandTotal;
+    salesmanMap.set(name, existing);
+  });
+
+  const salesmanMetrics = Array.from(salesmanMap.values()).map(sm => {
+    const commissionRateNum = 0.01; // 1.0% commission
+    return {
+      name: sm.name,
+      salesCount: sm.salesCount,
+      revenue: sm.revenue,
+      commissionRate: '1.0%',
+      commissionEarned: Math.round(sm.revenue * commissionRateNum)
+    };
+  });
 
   // CSV Exporter for active report
   const handleExportCSV = () => {

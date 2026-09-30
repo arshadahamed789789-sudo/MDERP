@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { Branch } from '../../types/erp';
+import { BackupRestoreManager } from './BackupRestoreManager';
 
 export const SettingsManager: React.FC = () => {
   const { 
@@ -536,21 +537,9 @@ export const SettingsManager: React.FC = () => {
         </div>
       )}
 
-      {/* Reset to Demo Data Card */}
-      <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 flex items-center justify-between">
-        <div>
-          <h3 className="font-bold text-xs text-slate-900">Reset Demo Database</h3>
-          <p className="text-[11px] text-slate-500 mt-0.5">
-            Reset all entities back to factory Bangladesh mobile demo state.
-          </p>
-        </div>
-        <button
-          onClick={handleResetData}
-          className="px-3.5 py-2 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Demo Data</span>
-        </button>
+      {/* Full Backup, Restore & Reset Center */}
+      <div className="pt-4 border-t border-slate-200">
+        <BackupRestoreManager />
       </div>
     </div>
   );

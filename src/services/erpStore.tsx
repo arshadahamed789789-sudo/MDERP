@@ -179,7 +179,7 @@ interface ERPContextType {
   updateSupplier: (id: string, updated: Partial<Supplier>) => boolean;
   deleteSupplier: (id: string) => { success: boolean; error?: string };
 
-  updateExpense: (id: string, updated: Partial<ExpenseRecord>) => boolean;
+  updateExpense: (id: string, updated: Partial<Expense>) => boolean;
   deleteExpense: (id: string) => boolean;
 
   updateWarrantyClaim: (id: string, updated: Partial<WarrantyClaim>) => boolean;
@@ -253,7 +253,19 @@ interface ERPContextType {
   }) => { success: boolean; adjustmentNo?: string; error?: string };
 
   exportAllBusinessData: () => void;
-
+  restoreFromBackup: (backupJsonString: string) => { 
+    success: boolean; 
+    summary?: {
+      productsCount: number;
+      imeisCount: number;
+      salesCount: number;
+      customersCount: number;
+      suppliersCount: number;
+      date?: string;
+    }; 
+    error?: string; 
+  };
+  resetToCleanSlate: () => void;
   resetToDemoData: () => void;
   globalSearch: (query: string) => {
     imeis: ProductIMEI[];
@@ -1438,7 +1450,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // 4. Expense CRUD
-  const updateExpense = (id: string, updated: Partial<ExpenseRecord>) => {
+  const updateExpense = (id: string, updated: Partial<Expense>) => {
     setExpenses(prev => prev.map(e => {
       if (e.id !== id) return e;
       const cat = updated.categoryId ? expenseCategories.find(c => c.id === updated.categoryId) : undefined;
@@ -2122,30 +2134,52 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, adjustmentNo };
   };
 
-  // 13. EXPORT ALL BUSINESS DATA
+  // 13. EXPORT ALL BUSINESS DATA (BACKUP)
   const exportAllBusinessData = () => {
+    const now = new Date();
+    const dateStr = now.toISOString().split('T')[0];
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+    
     const backupData = {
+      system: 'MOBILE_D_ERP',
+      schemaVersion: 2,
+      exportDate: now.toISOString(),
+      summary: {
+        productsCount: products.length,
+        imeisCount: imeis.length,
+        salesCount: sales.length,
+        customersCount: customers.length,
+        suppliersCount: suppliers.length,
+        branchesCount: branches.length,
+        expensesCount: expenses.length
+      },
       businessConfig,
       businessType,
-      exportDate: new Date().toISOString(),
       branches,
+      brands,
+      categories,
       products,
       imeis,
       customers,
       suppliers,
       cashAccounts,
       bankAccounts,
+      accountTransactions,
+      expenseCategories,
+      expenses,
       sales,
       purchases,
       quotations,
       salesReturns,
       purchaseReturns,
+      stockTransfers,
       stockAdjustments,
       warrantyClaims,
-      expenses,
       dailyClosings,
       chartOfAccounts,
       journalEntries,
+      customerLedgers,
+      supplierLedgers,
       auditLogs
     };
 
@@ -2153,17 +2187,185 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `MOBILE_DERP_BACKUP_${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `MOBILE_DERP_BACKUP_${dateStr}_${timeStr}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    logAudit('DATA_BACKUP_EXPORTED', 'Settings', 'BACKUP', 'Exported comprehensive database snapshot to JSON file');
+    logAudit('DATA_BACKUP_EXPORTED', 'Settings', 'BACKUP', `Exported full database backup (${products.length} products, ${imeis.length} devices, ${sales.length} sales)`);
   };
 
-  // Reset to Demo Data
+  // 14. RESTORE DATABASE FROM BACKUP
+  const restoreFromBackup = (backupJsonString: string) => {
+    try {
+      const data = JSON.parse(backupJsonString);
+      if (!data || typeof data !== 'object') {
+        return { success: false, error: 'Invalid backup file format. Expected JSON object.' };
+      }
+
+      // Check if this is a valid MOBILE D-ERP backup
+      const hasKeyData = Array.isArray(data.products) || Array.isArray(data.sales) || Array.isArray(data.customers) || data.businessConfig;
+      if (!hasKeyData) {
+        return { success: false, error: 'Unrecognized backup structure. This does not appear to be a MOBILE D-ERP database backup.' };
+      }
+
+      // Clean current localStorage to prevent orphaned keys
+      try {
+        const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX));
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+      } catch (err) {
+        console.warn('Could not clear old localStorage keys:', err);
+      }
+
+      // Restore states
+      if (data.businessConfig) {
+        setBusinessConfig(data.businessConfig);
+        saveState('config', data.businessConfig);
+      }
+      if (data.businessType) {
+        setBusinessType(data.businessType);
+        saveState('biz_type', data.businessType);
+      }
+      if (Array.isArray(data.branches) && data.branches.length > 0) {
+        setBranches(data.branches);
+        saveState('branches', data.branches);
+      }
+      if (Array.isArray(data.brands)) {
+        setBrands(data.brands);
+        saveState('brands', data.brands);
+      }
+      if (Array.isArray(data.categories)) {
+        setCategories(data.categories);
+        saveState('categories', data.categories);
+      }
+      if (Array.isArray(data.products)) {
+        setProducts(data.products);
+        saveState('products', data.products);
+      }
+      if (Array.isArray(data.imeis)) {
+        setImeis(data.imeis);
+        saveState('imeis', data.imeis);
+      }
+      if (Array.isArray(data.customers)) {
+        setCustomers(data.customers);
+        saveState('customers', data.customers);
+      }
+      if (Array.isArray(data.suppliers)) {
+        setSuppliers(data.suppliers);
+        saveState('suppliers', data.suppliers);
+      }
+      if (Array.isArray(data.cashAccounts)) {
+        setCashAccounts(data.cashAccounts);
+        saveState('cash_accounts', data.cashAccounts);
+      }
+      if (Array.isArray(data.bankAccounts)) {
+        setBankAccounts(data.bankAccounts);
+        saveState('bank_accounts', data.bankAccounts);
+      }
+      if (Array.isArray(data.accountTransactions)) {
+        setAccountTransactions(data.accountTransactions);
+        saveState('acc_trx', data.accountTransactions);
+      }
+      if (Array.isArray(data.expenseCategories)) {
+        setExpenseCategories(data.expenseCategories);
+        saveState('exp_cat', data.expenseCategories);
+      }
+      if (Array.isArray(data.expenses)) {
+        setExpenses(data.expenses);
+        saveState('expenses', data.expenses);
+      }
+      if (Array.isArray(data.sales)) {
+        setSales(data.sales);
+        saveState('sales', data.sales);
+      }
+      if (Array.isArray(data.purchases)) {
+        setPurchases(data.purchases);
+        saveState('purchases', data.purchases);
+      }
+      if (Array.isArray(data.quotations)) {
+        setQuotations(data.quotations);
+        saveState('quotations', data.quotations);
+      }
+      if (Array.isArray(data.salesReturns)) {
+        setSalesReturns(data.salesReturns);
+        saveState('sales_returns', data.salesReturns);
+      }
+      if (Array.isArray(data.purchaseReturns)) {
+        setPurchaseReturns(data.purchaseReturns);
+        saveState('pur_returns', data.purchaseReturns);
+      }
+      if (Array.isArray(data.stockTransfers)) {
+        setStockTransfers(data.stockTransfers);
+        saveState('transfers', data.stockTransfers);
+      }
+      if (Array.isArray(data.stockAdjustments)) {
+        setStockAdjustments(data.stockAdjustments);
+        saveState('adjustments', data.stockAdjustments);
+      }
+      if (Array.isArray(data.warrantyClaims)) {
+        setWarrantyClaims(data.warrantyClaims);
+        saveState('warranties', data.warrantyClaims);
+      }
+      if (Array.isArray(data.dailyClosings)) {
+        setDailyClosings(data.dailyClosings);
+        saveState('closings', data.dailyClosings);
+      }
+      if (Array.isArray(data.chartOfAccounts)) {
+        setChartOfAccounts(data.chartOfAccounts);
+        saveState('coa', data.chartOfAccounts);
+      }
+      if (Array.isArray(data.journalEntries)) {
+        setJournalEntries(data.journalEntries);
+        saveState('journals', data.journalEntries);
+      }
+      if (Array.isArray(data.customerLedgers)) {
+        setCustomerLedgers(data.customerLedgers);
+        saveState('cust_ledger', data.customerLedgers);
+      }
+      if (Array.isArray(data.supplierLedgers)) {
+        setSupplierLedgers(data.supplierLedgers);
+        saveState('sup_ledger', data.supplierLedgers);
+      }
+      if (Array.isArray(data.auditLogs)) {
+        setAuditLogs(data.auditLogs);
+        saveState('audit_logs', data.auditLogs);
+      }
+
+      setCurrentBranchId('all');
+
+      const restoredSummary = {
+        productsCount: Array.isArray(data.products) ? data.products.length : 0,
+        imeisCount: Array.isArray(data.imeis) ? data.imeis.length : 0,
+        salesCount: Array.isArray(data.sales) ? data.sales.length : 0,
+        customersCount: Array.isArray(data.customers) ? data.customers.length : 0,
+        suppliersCount: Array.isArray(data.suppliers) ? data.suppliers.length : 0,
+        date: data.exportDate || new Date().toISOString()
+      };
+
+      logAudit('BACKUP_RESTORED', 'Settings', 'RESTORE', `Restored database from JSON backup (${restoredSummary.productsCount} products, ${restoredSummary.salesCount} sales)`);
+
+      return {
+        success: true,
+        summary: restoredSummary
+      };
+    } catch (e: any) {
+      console.error('Backup restoration failed:', e);
+      return { success: false, error: `Failed to parse backup JSON: ${e?.message || 'Syntax error'}` };
+    }
+  };
+
+  // 15. COMPLETE RESET TO FACTORY DEMO DATA
   const resetToDemoData = () => {
-    localStorage.clear();
+    // Purge all keys starting with MOBILE_DERP_
+    try {
+      const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX));
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch (err) {
+      localStorage.clear();
+    }
+
     setBusinessConfig(initialBusinessConfig);
     setBusinessType('RETAIL_WHOLESALE');
+    setBranches(initialBranches);
+    setCurrentBranchId('all');
     setBrands(initialBrands);
     setCategories(initialCategories);
     setProducts(initialProducts);
@@ -2190,6 +2392,113 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSupplierLedgers(initialSupplierLedger);
     setAuditLogs(initialAuditLogs);
     setCurrentUser(initialUsers[0]);
+
+    // Force save the clean initial states
+    saveState('config', initialBusinessConfig);
+    saveState('biz_type', 'RETAIL_WHOLESALE');
+    saveState('branches', initialBranches);
+    saveState('brands', initialBrands);
+    saveState('categories', initialCategories);
+    saveState('products', initialProducts);
+    saveState('imeis', initialImeis);
+    saveState('customers', initialCustomers);
+    saveState('suppliers', initialSuppliers);
+    saveState('cash_accounts', initialCashAccounts);
+    saveState('bank_accounts', initialBankAccounts);
+    saveState('acc_trx', []);
+    saveState('exp_cat', initialExpenseCategories);
+    saveState('expenses', initialExpenses);
+    saveState('sales', initialSales);
+    saveState('purchases', initialPurchases);
+    saveState('quotations', initialQuotations);
+    saveState('sales_returns', initialSalesReturns);
+    saveState('pur_returns', initialPurchaseReturns);
+    saveState('transfers', []);
+    saveState('adjustments', initialStockAdjustments);
+    saveState('warranties', initialWarrantyClaims);
+    saveState('closings', initialDailyClosings);
+    saveState('coa', initialChartOfAccounts);
+    saveState('journals', []);
+    saveState('cust_ledger', initialCustomerLedger);
+    saveState('sup_ledger', initialSupplierLedger);
+    saveState('audit_logs', initialAuditLogs);
+  };
+
+  // 16. COMPLETE CLEAN SLATE RESET (Blank Production System)
+  const resetToCleanSlate = () => {
+    try {
+      const keysToRemove = Object.keys(localStorage).filter(k => k.startsWith(STORAGE_PREFIX));
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch (err) {
+      localStorage.clear();
+    }
+
+    const defaultCash: CashAccount[] = [
+      { id: 'cash-main', name: 'Main Counter Cash Drawer (ক্যাশ বাক্স)', branchId: initialBranches[0].id, balance: 0, type: 'COUNTER_CASH' }
+    ];
+    const defaultBank: BankAccount[] = [
+      { id: 'bank-main', bankName: 'Islami Bank Bangladesh PLC', accountName: 'General Corporate Account', accountNumber: '2050123456789', branchName: 'Dhaka Main Branch', balance: 0, type: 'BANK' }
+    ];
+
+    setProducts([]);
+    setImeis([]);
+    setCustomers([]);
+    setSuppliers([]);
+    setCashAccounts(defaultCash);
+    setBankAccounts(defaultBank);
+    setAccountTransactions([]);
+    setExpenses([]);
+    setSales([]);
+    setPurchases([]);
+    setQuotations([]);
+    setSalesReturns([]);
+    setPurchaseReturns([]);
+    setStockTransfers([]);
+    setStockAdjustments([]);
+    setWarrantyClaims([]);
+    setDailyClosings([]);
+    setCustomerLedgers([]);
+    setSupplierLedgers([]);
+    setJournalEntries([]);
+    setBranches(initialBranches);
+    setBrands(initialBrands);
+    setCategories(initialCategories);
+    setExpenseCategories(initialExpenseCategories);
+    setChartOfAccounts(initialChartOfAccounts);
+    setAuditLogs([
+      {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        action: 'CLEAN_SLATE_RESET',
+        module: 'System',
+        recordId: 'ALL',
+        details: 'System database wiped to blank slate for fresh business production startup.'
+      }
+    ]);
+    setCurrentBranchId('all');
+
+    saveState('products', []);
+    saveState('imeis', []);
+    saveState('customers', []);
+    saveState('suppliers', []);
+    saveState('cash_accounts', defaultCash);
+    saveState('bank_accounts', defaultBank);
+    saveState('acc_trx', []);
+    saveState('expenses', []);
+    saveState('sales', []);
+    saveState('purchases', []);
+    saveState('quotations', []);
+    saveState('sales_returns', []);
+    saveState('pur_returns', []);
+    saveState('transfers', []);
+    saveState('adjustments', []);
+    saveState('warranties', []);
+    saveState('closings', []);
+    saveState('cust_ledger', []);
+    saveState('sup_ledger', []);
+    saveState('journals', []);
   };
 
   // Global search
@@ -2306,6 +2615,8 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addBrand,
       deleteBrand,
       voidPurchaseBill,
+      restoreFromBackup,
+      resetToCleanSlate,
       resetToDemoData,
       globalSearch
     }}>

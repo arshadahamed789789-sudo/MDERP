@@ -119,49 +119,63 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => setShowBizMenu(!showBizMenu)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-semibold rounded-lg text-emerald-400 border border-slate-700 transition"
+            title="Switch Business Mode (Retail / Wholesale / Hybrid)"
           >
             <Store className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">
-              {businessType === 'RETAIL' ? 'Retail Only' : businessType === 'WHOLESALE' ? 'Wholesale Only' : 'Retail + Wholesale'}
+            <span className="hidden sm:inline">
+              {businessType === 'RETAIL' ? '🛒 Retail' : businessType === 'WHOLESALE' ? '🏢 Wholesale' : '⚡ Retail+Wholesale'}
             </span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
           {showBizMenu && (
-            <div className="absolute right-0 mt-2 w-52 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
-                Business Mode
+            <div className="absolute right-0 mt-2 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+                Business Mode (ব্যবসার ধরন)
               </div>
               <button
                 onClick={() => { setBusinessType('RETAIL_WHOLESALE'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-700 ${businessType === 'RETAIL_WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'RETAIL_WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
               >
-                <span>Retail + Wholesale (Both)</span>
+                <div className="flex items-center justify-between">
+                  <span>⚡ Retail + Wholesale (Both)</span>
+                  {businessType === 'RETAIL_WHOLESALE' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                </div>
+                <span className="text-[10px] text-slate-400">Full ERP with counter POS and dealer cartons</span>
               </button>
               <button
                 onClick={() => { setBusinessType('WHOLESALE'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-700 ${businessType === 'WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
               >
-                <span>Wholesale Dealer Mode</span>
+                <div className="flex items-center justify-between">
+                  <span>🏢 Wholesale Dealer Mode</span>
+                  {businessType === 'WHOLESALE' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                </div>
+                <span className="text-[10px] text-slate-400">Dealers, credit limits, quotations & master cartons</span>
               </button>
               <button
                 onClick={() => { setBusinessType('RETAIL'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 flex items-center justify-between hover:bg-slate-700 ${businessType === 'RETAIL' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'RETAIL' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
               >
-                <span>Retail Shop Mode</span>
+                <div className="flex items-center justify-between">
+                  <span>🛒 Retail Shop Mode</span>
+                  {businessType === 'RETAIL' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                </div>
+                <span className="text-[10px] text-slate-400">Single phone sales, counter cash & warranties</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Branch Selector */}
+        {/* Operating Branch Selector */}
         <div className="relative">
           <button
             onClick={() => setShowBranchMenu(!showBranchMenu)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-medium rounded-lg text-slate-200 border border-slate-700 transition"
+            title="Filter by Operating Branch"
           >
             <Building2 className="w-3.5 h-3.5 text-blue-400" />
-            <span className="max-w-[110px] truncate hidden md:inline">
+            <span className="max-w-[120px] truncate hidden md:inline">
               {currentBranchId === 'all' ? 'All Branches' : branches.find(b => b.id === currentBranchId)?.name.split(' ')[0]}
             </span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
@@ -169,14 +183,15 @@ export const Header: React.FC<HeaderProps> = ({
 
           {showBranchMenu && (
             <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
-                Operating Branch
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+                Operating Branch (দোকানের শাখা)
               </div>
               <button
                 onClick={() => { setCurrentBranchId('all'); setShowBranchMenu(false); }}
-                className={`w-full text-left px-3 py-2 hover:bg-slate-700 ${currentBranchId === 'all' ? 'text-blue-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex items-center justify-between ${currentBranchId === 'all' ? 'text-blue-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
               >
-                All Branches (Consolidated View)
+                <span>🏛️ All Branches (Consolidated)</span>
+                {currentBranchId === 'all' && <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1 rounded">Active</span>}
               </button>
               {branches.map(b => (
                 <button
@@ -184,7 +199,10 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => { setCurrentBranchId(b.id); setShowBranchMenu(false); }}
                   className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${currentBranchId === b.id ? 'text-blue-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
                 >
-                  <span>{b.name}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">📍 {b.name}</span>
+                    {currentBranchId === b.id && <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1 rounded">Active</span>}
+                  </div>
                   <span className="text-[10px] text-slate-400">{b.type} • {b.location.split(',')[0]}</span>
                 </button>
               ))}
@@ -192,11 +210,12 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Role Switcher */}
+        {/* Switch Role (RBAC Simulator) */}
         <div className="relative">
           <button
             onClick={() => setShowRoleMenu(!showRoleMenu)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-medium rounded-lg text-slate-200 border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-medium rounded-lg text-amber-400 border border-slate-700 transition"
+            title="Switch User Role (RBAC Simulator)"
           >
             <UserCheck className="w-3.5 h-3.5 text-amber-400" />
             <span className="hidden xl:inline">{currentUser.role}</span>
@@ -204,8 +223,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {showRoleMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+            <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
+              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
                 Switch Role (RBAC Simulator)
               </div>
               {users.map(u => (
@@ -214,8 +233,18 @@ export const Header: React.FC<HeaderProps> = ({
                   onClick={() => { setCurrentUser(u); setShowRoleMenu(false); }}
                   className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${currentUser.id === u.id ? 'text-amber-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
                 >
-                  <span className="font-semibold">{u.name}</span>
-                  <span className="text-[10px] text-slate-400">{u.role}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{u.name}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-amber-300 font-mono">
+                      {u.role}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">
+                    {u.role === 'Super Admin' || u.role === 'Business Owner' ? 'Full unrestricted access' :
+                     u.role === 'Accountant' ? 'Accounts, sales, cash & ledgers' :
+                     u.role === 'Salesman' ? 'POS, IMEI scanning, warranty' :
+                     u.role === 'Store Keeper' ? 'Purchases, stock & suppliers' : 'Management permissions'}
+                  </span>
                 </button>
               ))}
             </div>
