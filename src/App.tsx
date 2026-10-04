@@ -41,11 +41,6 @@ const ERPAppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // If not authenticated, display the Sign In / Sign Up portal
-  if (!isAuthenticated) {
-    return <AuthScreen />;
-  }
-
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isNewSaleOpen, setIsNewSaleOpen] = useState(false);
@@ -56,14 +51,16 @@ const ERPAppContent: React.FC = () => {
 
   // Auto-redirect if switched role does not have permission for activeTab
   useEffect(() => {
+    if (!isAuthenticated) return;
     const allowed = ROLE_TAB_PERMISSIONS[currentUser.role] || ['dashboard'];
     if (!allowed.includes(activeTab)) {
       setActiveTab('dashboard');
     }
-  }, [currentUser.role]);
+  }, [currentUser.role, isAuthenticated, activeTab]);
 
   // Hotkey listener for Ctrl+K / Cmd+K
   useEffect(() => {
+    if (!isAuthenticated) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -72,7 +69,12 @@ const ERPAppContent: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAuthenticated]);
+
+  // If not authenticated, display the Sign In / Sign Up portal
+  if (!isAuthenticated) {
+    return <AuthScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">

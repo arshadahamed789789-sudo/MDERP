@@ -236,10 +236,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={() => {
-                if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?' : 'Are you sure you want to log out?')) {
-                  logout();
-                  if (onCloseMobile) onCloseMobile();
-                }
+                logout();
+                if (onCloseMobile) onCloseMobile();
               }}
               className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition shrink-0"
               title={language === 'bn' ? 'লগআউট করুন' : 'Sign Out'}
@@ -252,15 +250,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={() => {
-              if (window.confirm(language === 'bn' ? 'আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?' : 'Are you sure you want to log out?')) {
-                logout();
-                if (onCloseMobile) onCloseMobile();
-              }
+              logout();
+              if (onCloseMobile) onCloseMobile();
             }}
-            className="w-full py-1.5 px-2 bg-slate-800/80 hover:bg-rose-600 hover:text-white text-slate-300 rounded-lg text-[11px] font-semibold transition flex items-center justify-center gap-1.5 group border border-slate-700/60"
+            className="w-full py-2 px-2 bg-rose-600/90 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2 group shadow-sm active:scale-98"
           >
-            <LogOut className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition" />
-            <span>{language === 'bn' ? 'লগআউট (Sign Out)' : 'Sign Out / Logout'}</span>
+            <LogOut className="w-3.5 h-3.5 text-white" />
+            <span>{language === 'bn' ? 'লগআউট করুন' : 'Sign Out / Logout'}</span>
           </button>
         </div>
       </aside>

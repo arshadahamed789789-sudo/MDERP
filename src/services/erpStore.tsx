@@ -319,9 +319,20 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [branches, setBranches] = useState<Branch[]>(() => 
     loadState('branches', initialBranches)
   );
-  const [users, setUsers] = useState<User[]>(() => 
-    loadState('users', initialUsers)
-  );
+  const [users, setUsers] = useState<User[]>(() => {
+    const loaded = loadState<User[]>('users', initialUsers);
+    if (!Array.isArray(loaded) || loaded.length === 0) return initialUsers;
+    const map = new Map(loaded.map(u => [u.username.toLowerCase(), u]));
+    for (const demo of initialUsers) {
+      if (!map.has(demo.username.toLowerCase())) {
+        loaded.push(demo);
+      } else {
+        const existing = map.get(demo.username.toLowerCase())!;
+        if (!existing.password) existing.password = 'password123';
+      }
+    }
+    return loaded;
+  });
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const saved = loadState<User | null>('current_user', null);
     if (saved && saved.id) return saved;
@@ -330,8 +341,8 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return loadState('is_authenticated', true);
   });
-  const [currentBranchId, setCurrentBranchId] = useState<string>('all');
-  const [language, setLanguage] = useState<'bn' | 'en'>('en');
+  const [currentBranchId, setCurrentBranchId] = useState<string>(() => loadState('cur_branch', 'all'));
+  const [language, setLanguage] = useState<'bn' | 'en'>(() => loadState<'bn' | 'en'>('lang', 'en'));
 
   const [brands, setBrands] = useState<Brand[]>(() => loadState('brands', initialBrands));
   const [categories, setCategories] = useState<Category[]>(() => loadState('categories', initialCategories));
@@ -375,7 +386,10 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => saveState('cash_accounts', cashAccounts), [cashAccounts]);
   useEffect(() => saveState('bank_accounts', bankAccounts), [bankAccounts]);
   useEffect(() => saveState('acc_trx', accountTransactions), [accountTransactions]);
+  useEffect(() => saveState('exp_cat', expenseCategories), [expenseCategories]);
   useEffect(() => saveState('expenses', expenses), [expenses]);
+  useEffect(() => saveState('cur_branch', currentBranchId), [currentBranchId]);
+  useEffect(() => saveState('lang', language), [language]);
   useEffect(() => saveState('sales', sales), [sales]);
   useEffect(() => saveState('purchases', purchases), [purchases]);
   useEffect(() => saveState('quotations', quotations), [quotations]);
@@ -1921,12 +1935,14 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (password !== undefined && password !== null && password !== '') {
-      if (user.password && user.password !== password) {
+      const cleanPassword = password.trim();
+      const expectedPassword = (user.password || 'password123').trim();
+      if (cleanPassword !== expectedPassword) {
         return { 
           success: false, 
           error: language === 'bn' 
-            ? 'পাসওয়ার্ড ভুল হয়েছে। সঠিক পাসওয়ার্ড দিয়ে চেষ্টা করুন।' 
-            : 'Incorrect password. Please verify and try again.' 
+            ? 'পাসওয়ার্ড ভুল হয়েছে। সঠিক পাসওয়ার্ড দিয়ে চেষ্টা করুন (ডিফল্ট: password123)' 
+            : 'Incorrect password. Please verify and try again (default: password123).' 
         };
       }
     }
@@ -2703,9 +2719,14 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCustomerLedgers(initialCustomerLedger);
     setSupplierLedgers(initialSupplierLedger);
     setAuditLogs(initialAuditLogs);
+    setUsers(initialUsers);
     setCurrentUser(initialUsers[0]);
+    setIsAuthenticated(true);
 
     // Force save the clean initial states
+    saveState('users', initialUsers);
+    saveState('current_user', initialUsers[0]);
+    saveState('is_authenticated', true);
     saveState('config', initialBusinessConfig);
     saveState('biz_type', 'RETAIL_WHOLESALE');
     saveState('branches', initialBranches);
@@ -2791,6 +2812,16 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ]);
     setCurrentBranchId('all');
 
+    saveState('users', users.length > 0 ? users : initialUsers);
+    saveState('current_user', currentUser);
+    saveState('is_authenticated', isAuthenticated);
+    saveState('config', businessConfig);
+    saveState('biz_type', businessType);
+    saveState('branches', initialBranches);
+    saveState('brands', initialBrands);
+    saveState('categories', initialCategories);
+    saveState('exp_cat', initialExpenseCategories);
+    saveState('coa', initialChartOfAccounts);
     saveState('products', []);
     saveState('imeis', []);
     saveState('customers', []);
