@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Landmark, Wallet, ArrowDownRight, ArrowUpRight, CheckCircle2, 
-  AlertCircle, Plus, Calendar, Clock, DollarSign, X, Pencil
+  AlertCircle, Plus, Calendar, Clock, DollarSign, X, Pencil, ArrowRightLeft
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate, formatDateTime } from '../../utils/formatters';
@@ -10,7 +10,7 @@ import { AccountModal } from './AccountModal';
 export const CashBankManager: React.FC = () => {
   const { 
     cashAccounts, bankAccounts, accountTransactions, dailyClosings,
-    performDailyClosing, branches, currentBranchId, language 
+    performDailyClosing, transferFunds, branches, currentBranchId, language 
   } = useERP();
 
   const [activeTab, setActiveTab] = useState<'accounts' | 'transactions' | 'closing'>('accounts');
@@ -25,6 +25,15 @@ export const CashBankManager: React.FC = () => {
   // Account Add / Edit Modal
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [accountModalEditing, setAccountModalEditing] = useState<{ type: 'bank' | 'cash'; data: any } | null>(null);
+
+  // Inter-Account Transfer Modal
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferFromId, setTransferFromId] = useState(cashAccounts[0]?.id || '');
+  const [transferToId, setTransferToId] = useState(bankAccounts[0]?.id || '');
+  const [transferAmount, setTransferAmount] = useState(0);
+  const [transferReference, setTransferReference] = useState('');
+  const [transferNotes, setTransferNotes] = useState('');
+  const [transferError, setTransferError] = useState('');
 
   // Aggregates
   const totalCashInDrawers = cashAccounts.reduce((acc, ca) => acc + ca.balance, 0);
@@ -51,6 +60,44 @@ export const CashBankManager: React.FC = () => {
     }, 1200);
   };
 
+  const handleOpenTransfer = () => {
+    setTransferFromId(cashAccounts[0]?.id || '');
+    setTransferToId(bankAccounts[0]?.id || cashAccounts[1]?.id || '');
+    setTransferAmount(0);
+    setTransferReference('');
+    setTransferNotes('');
+    setTransferError('');
+    setShowTransferModal(true);
+  };
+
+  const handleExecuteTransfer = (e: React.FormEvent) => {
+    e.preventDefault();
+    setTransferError('');
+    if (transferAmount <= 0) {
+      setTransferError(language === 'bn' ? 'টাকার পরিমাণ ০ এর বেশি হতে হবে।' : 'Amount must be greater than zero.');
+      return;
+    }
+    if (transferFromId === transferToId) {
+      setTransferError(language === 'bn' ? 'উৎস ও গন্তব্য একাউন্ট একই হতে পারে না।' : 'Source and destination accounts must be different.');
+      return;
+    }
+
+    const res = transferFunds({
+      fromAccountId: transferFromId,
+      toAccountId: transferToId,
+      amount: transferAmount,
+      reference: transferReference.trim() || undefined,
+      notes: transferNotes.trim() || undefined
+    });
+
+    if (!res.success) {
+      setTransferError(res.error || 'Transfer failed.');
+      return;
+    }
+
+    setShowTransferModal(false);
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -66,6 +113,14 @@ export const CashBankManager: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <button
+            type="button"
+            onClick={handleOpenTransfer}
+            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <ArrowRightLeft className="w-4 h-4 text-blue-200" />
+            <span>{language === 'bn' ? 'ইন্টার-একাউন্ট ট্রান্সফার' : 'Transfer Funds'}</span>
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -466,6 +521,132 @@ export const CashBankManager: React.FC = () => {
           setAccountModalEditing(null);
         }}
       />
+
+      {/* Inter-Account Transfer Modal */}
+      {showTransferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-slate-900 text-white flex items-center justify-between">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4 text-blue-400" />
+                <span>{language === 'bn' ? 'ইন্টার-একাউন্ট ফান্ড ট্রান্সফার' : 'Inter-Account Fund Transfer'}</span>
+              </h3>
+              <button type="button" onClick={() => setShowTransferModal(false)}>
+                <X className="w-4 h-4 text-slate-400 hover:text-white" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteTransfer} className="p-5 space-y-3.5 text-xs">
+              {transferError && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{transferError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="font-bold text-slate-700 mb-1 block">From Account (টাকা যেখান থেকে যাবে) *</label>
+                <select
+                  value={transferFromId}
+                  onChange={e => setTransferFromId(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded-lg"
+                >
+                  <optgroup label="Cash Drawers">
+                    {cashAccounts.map(ca => (
+                      <option key={ca.id} value={ca.id}>
+                        {ca.name} (Balance: {formatBDT(ca.balance)})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Bank & MFS Accounts">
+                    {bankAccounts.map(ba => (
+                      <option key={ba.id} value={ba.id}>
+                        {ba.bankName} - {ba.accountNumber} (Balance: {formatBDT(ba.balance)})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 mb-1 block">To Account (টাকা যেখানে জমা হবে) *</label>
+                <select
+                  value={transferToId}
+                  onChange={e => setTransferToId(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded-lg"
+                >
+                  <optgroup label="Bank & MFS Accounts">
+                    {bankAccounts.map(ba => (
+                      <option key={ba.id} value={ba.id}>
+                        {ba.bankName} - {ba.accountNumber} (Balance: {formatBDT(ba.balance)})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Cash Drawers">
+                    {cashAccounts.map(ca => (
+                      <option key={ca.id} value={ca.id}>
+                        {ca.name} (Balance: {formatBDT(ca.balance)})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 mb-1 block">Transfer Amount (৳) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  value={transferAmount || ''}
+                  onChange={e => setTransferAmount(Number(e.target.value))}
+                  placeholder="0"
+                  className="w-full p-2.5 font-mono font-bold text-base border border-slate-300 rounded-lg text-blue-700"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 mb-1 block">TrxID / Reference Slip</label>
+                <input
+                  type="text"
+                  placeholder="e.g. DEPOSIT-88192 or MFS-3910"
+                  value={transferReference}
+                  onChange={e => setTransferReference(e.target.value)}
+                  className="w-full p-2.5 font-mono border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 mb-1 block">Notes / Reason</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Counter cash transferred to bank account"
+                  value={transferNotes}
+                  onChange={e => setTransferNotes(e.target.value)}
+                  className="w-full p-2.5 border border-slate-300 rounded-lg"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowTransferModal(false)}
+                  className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5"
+                >
+                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                  <span>Execute Transfer</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

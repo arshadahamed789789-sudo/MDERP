@@ -203,6 +203,14 @@ interface ERPContextType {
   updateBankAccount: (id: string, updated: Partial<BankAccount>) => boolean;
   deleteBankAccount: (id: string) => boolean;
 
+  transferFunds: (data: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    reference?: string;
+    notes?: string;
+  }) => { success: boolean; error?: string };
+
   createQuotation: (data: {
     customerId: string;
     branchId: string;
@@ -250,6 +258,14 @@ interface ERPContextType {
   addBrand: (name: string, country?: string) => { success: boolean; brand?: Brand; error?: string };
   updateBrand: (id: string, updated: { name: string; country?: string }) => { success: boolean; brand?: Brand; error?: string };
   deleteBrand: (id: string) => { success: boolean; error?: string };
+
+  addCategory: (name: string, hasImei?: boolean) => { success: boolean; category?: Category; error?: string };
+  updateCategory: (id: string, updated: { name: string; hasImei?: boolean }) => { success: boolean; category?: Category; error?: string };
+  deleteCategory: (id: string) => { success: boolean; error?: string };
+
+  addExpenseCategory: (name: string, nameBn?: string) => { success: boolean; category?: ExpenseCategory; error?: string };
+  updateExpenseCategory: (id: string, updated: { name: string; nameBn?: string }) => { success: boolean; category?: ExpenseCategory; error?: string };
+  deleteExpenseCategory: (id: string) => { success: boolean; error?: string };
 
   voidPurchaseBill: (invoiceNo: string, reason?: string) => { success: boolean; error?: string };
 
@@ -1577,6 +1593,104 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
+  // Inter-Account Fund Transfer (e.g. Counter Cash to Bank or Bank to bKash)
+  const transferFunds = (data: {
+    fromAccountId: string;
+    toAccountId: string;
+    amount: number;
+    reference?: string;
+    notes?: string;
+  }): { success: boolean; error?: string } => {
+    const { fromAccountId, toAccountId, amount, reference, notes } = data;
+    if (amount <= 0) {
+      return { success: false, error: 'Transfer amount must be greater than 0.' };
+    }
+    if (fromAccountId === toAccountId) {
+      return { success: false, error: 'Source and destination accounts cannot be the same.' };
+    }
+
+    // Identify source
+    const isFromCash = cashAccounts.some(c => c.id === fromAccountId);
+    const fromCash = cashAccounts.find(c => c.id === fromAccountId);
+    const fromBank = bankAccounts.find(b => b.id === fromAccountId);
+    const fromName = fromCash ? fromCash.name : fromBank ? `${fromBank.bankName} (${fromBank.accountNumber})` : null;
+    const fromBalance = fromCash ? fromCash.balance : fromBank ? fromBank.balance : 0;
+
+    if (!fromName) {
+      return { success: false, error: 'Source account not found.' };
+    }
+    if (fromBalance < amount) {
+      return { 
+        success: false, 
+        error: `Insufficient balance in ${fromName}. Available: ৳${fromBalance.toLocaleString()}, Attempted: ৳${amount.toLocaleString()}` 
+      };
+    }
+
+    // Identify destination
+    const isToCash = cashAccounts.some(c => c.id === toAccountId);
+    const toCash = cashAccounts.find(c => c.id === toAccountId);
+    const toBank = bankAccounts.find(b => b.id === toAccountId);
+    const toName = toCash ? toCash.name : toBank ? `${toBank.bankName} (${toBank.accountNumber})` : null;
+
+    if (!toName) {
+      return { success: false, error: 'Destination account not found.' };
+    }
+
+    // Execute balance deductions & additions
+    if (isFromCash) {
+      setCashAccounts(prev => prev.map(c => c.id === fromAccountId ? { ...c, balance: c.balance - amount } : c));
+    } else {
+      setBankAccounts(prev => prev.map(b => b.id === fromAccountId ? { ...b, balance: b.balance - amount } : b));
+    }
+
+    if (isToCash) {
+      setCashAccounts(prev => prev.map(c => c.id === toAccountId ? { ...c, balance: c.balance + amount } : c));
+    } else {
+      setBankAccounts(prev => prev.map(b => b.id === toAccountId ? { ...b, balance: b.balance + amount } : b));
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const trxId = reference || `TRF-${Date.now().toString().slice(-6)}`;
+
+    // Record source movement (OUT)
+    const outTrx: AccountTransaction = {
+      id: `trx-out-${Date.now()}`,
+      accountId: fromAccountId,
+      accountName: fromName,
+      accountType: isFromCash ? 'CASH' : (fromBank?.type === 'BANK' ? 'BANK' : 'MFS'),
+      type: 'OUT',
+      category: 'Inter-Account Transfer Out',
+      amount,
+      date: today,
+      referenceType: 'TRANSFER',
+      referenceId: trxId,
+      description: `Transfer to ${toName}. ${notes || ''}`,
+      balanceAfter: fromBalance - amount
+    };
+
+    // Record destination movement (IN)
+    const toCurrentBalance = toCash ? toCash.balance : toBank ? toBank.balance : 0;
+    const inTrx: AccountTransaction = {
+      id: `trx-in-${Date.now() + 1}`,
+      accountId: toAccountId,
+      accountName: toName,
+      accountType: isToCash ? 'CASH' : (toBank?.type === 'BANK' ? 'BANK' : 'MFS'),
+      type: 'IN',
+      category: 'Inter-Account Transfer In',
+      amount,
+      date: today,
+      referenceType: 'TRANSFER',
+      referenceId: trxId,
+      description: `Received from ${fromName}. ${notes || ''}`,
+      balanceAfter: toCurrentBalance + amount
+    };
+
+    setAccountTransactions(prev => [outTrx, inTrx, ...prev]);
+
+    logAudit('FUNDS_TRANSFERRED', 'CashBank', trxId, `Transferred ৳${amount.toLocaleString()} from ${fromName} to ${toName}`);
+    return { success: true };
+  };
+
   // 7. Quotations CRUD
   const updateQuotation = (id: string, updated: Partial<Quotation>) => {
     setQuotations(prev => prev.map(q => {
@@ -1858,6 +1972,136 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     setBrands(prev => prev.filter(b => b.id !== id));
     logAudit('BRAND_DELETED', 'Inventory', id, `Deleted brand ${target?.name || id}`);
+    return { success: true };
+  };
+
+  // Product Category CRUD
+  const addCategory = (name: string, hasImei: boolean = true): { success: boolean; category?: Category; error?: string } => {
+    const cleanName = name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Category name is required.' };
+    }
+    if (categories.some(c => c.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Category "${cleanName}" already exists.` };
+    }
+    const newCat: Category = {
+      id: `cat-${Date.now()}`,
+      name: cleanName,
+      hasImei
+    };
+    setCategories(prev => [...prev, newCat]);
+    logAudit('CATEGORY_CREATED', 'Inventory', newCat.id, `Created product category ${newCat.name}`);
+    return { success: true, category: newCat };
+  };
+
+  const updateCategory = (id: string, updated: { name: string; hasImei?: boolean }): { success: boolean; category?: Category; error?: string } => {
+    const cleanName = updated.name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Category name cannot be empty.' };
+    }
+    if (categories.some(c => c.id !== id && c.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Another category with name "${cleanName}" already exists.` };
+    }
+    const existing = categories.find(c => c.id === id);
+    if (!existing) return { success: false, error: 'Category not found.' };
+
+    const oldName = existing.name;
+    const finalCat: Category = {
+      ...existing,
+      name: cleanName,
+      hasImei: updated.hasImei !== undefined ? updated.hasImei : existing.hasImei
+    };
+
+    setCategories(prev => prev.map(c => c.id === id ? finalCat : c));
+
+    // Cascade update product catalog
+    if (oldName !== cleanName) {
+      setProducts(prev => prev.map(p => p.category === oldName ? { ...p, category: cleanName } : p));
+    }
+
+    logAudit('CATEGORY_UPDATED', 'Inventory', id, `Updated category ${oldName} to ${cleanName}`);
+    return { success: true, category: finalCat };
+  };
+
+  const deleteCategory = (id: string): { success: boolean; error?: string } => {
+    const target = categories.find(c => c.id === id);
+    if (!target) return { success: false, error: 'Category not found.' };
+
+    const linkedProducts = products.filter(p => p.category === target.name);
+    if (linkedProducts.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete category "${target.name}". It is currently assigned to ${linkedProducts.length} product(s) in catalog (e.g. ${linkedProducts[0].model}). Reassign or delete those products first.`
+      };
+    }
+
+    setCategories(prev => prev.filter(c => c.id !== id));
+    logAudit('CATEGORY_DELETED', 'Inventory', id, `Deleted category ${target.name}`);
+    return { success: true };
+  };
+
+  // Expense Category CRUD
+  const addExpenseCategory = (name: string, nameBn?: string): { success: boolean; category?: ExpenseCategory; error?: string } => {
+    const cleanName = name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Expense category name is required.' };
+    }
+    if (expenseCategories.some(c => c.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Expense category "${cleanName}" already exists.` };
+    }
+    const newCat: ExpenseCategory = {
+      id: `expcat-${Date.now()}`,
+      name: cleanName,
+      nameBn: nameBn ? nameBn.trim() : cleanName
+    };
+    setExpenseCategories(prev => [...prev, newCat]);
+    logAudit('EXPENSE_CATEGORY_CREATED', 'Expenses', newCat.id, `Created expense category ${newCat.name}`);
+    return { success: true, category: newCat };
+  };
+
+  const updateExpenseCategory = (id: string, updated: { name: string; nameBn?: string }): { success: boolean; category?: ExpenseCategory; error?: string } => {
+    const cleanName = updated.name.trim();
+    if (!cleanName) {
+      return { success: false, error: 'Expense category name cannot be empty.' };
+    }
+    if (expenseCategories.some(c => c.id !== id && c.name.toLowerCase() === cleanName.toLowerCase())) {
+      return { success: false, error: `Another expense category with name "${cleanName}" already exists.` };
+    }
+    const existing = expenseCategories.find(c => c.id === id);
+    if (!existing) return { success: false, error: 'Expense category not found.' };
+
+    const oldName = existing.name;
+    const finalCat: ExpenseCategory = {
+      ...existing,
+      name: cleanName,
+      nameBn: updated.nameBn ? updated.nameBn.trim() : (existing.nameBn || cleanName)
+    };
+
+    setExpenseCategories(prev => prev.map(c => c.id === id ? finalCat : c));
+
+    // Cascade update expenses categoryName
+    if (oldName !== cleanName) {
+      setExpenses(prev => prev.map(e => e.categoryId === id ? { ...e, categoryName: cleanName } : e));
+    }
+
+    logAudit('EXPENSE_CATEGORY_UPDATED', 'Expenses', id, `Updated expense category to ${cleanName}`);
+    return { success: true, category: finalCat };
+  };
+
+  const deleteExpenseCategory = (id: string): { success: boolean; error?: string } => {
+    const target = expenseCategories.find(c => c.id === id);
+    if (!target) return { success: false, error: 'Expense category not found.' };
+
+    const linkedExpenses = expenses.filter(e => e.categoryId === id);
+    if (linkedExpenses.length > 0) {
+      return {
+        success: false,
+        error: `Cannot delete expense category "${target.name}". It is used by ${linkedExpenses.length} existing expense voucher(s).`
+      };
+    }
+
+    setExpenseCategories(prev => prev.filter(c => c.id !== id));
+    logAudit('EXPENSE_CATEGORY_DELETED', 'Expenses', id, `Deleted expense category ${target.name}`);
     return { success: true };
   };
 
@@ -2954,6 +3198,7 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addBankAccount,
       updateBankAccount,
       deleteBankAccount,
+      transferFunds,
       updateQuotation,
       deleteQuotation,
       voidSaleInvoice,
@@ -2966,6 +3211,12 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addBrand,
       updateBrand,
       deleteBrand,
+      addCategory,
+      updateCategory,
+      deleteCategory,
+      addExpenseCategory,
+      updateExpenseCategory,
+      deleteExpenseCategory,
       voidPurchaseBill,
       restoreFromBackup,
       resetToCleanSlate,

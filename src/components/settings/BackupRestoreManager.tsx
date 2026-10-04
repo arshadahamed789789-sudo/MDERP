@@ -115,7 +115,6 @@ export const BackupRestoreManager: React.FC = () => {
   // Execute Clean Slate Reset
   const handleExecuteCleanReset = () => {
     if (cleanConfirmText.trim().toUpperCase() !== 'RESET') {
-      alert(language === 'bn' ? 'নিশ্চিত করতে "RESET" টাইপ করুন' : 'Please type "RESET" to confirm.');
       return;
     }
     resetToCleanSlate();

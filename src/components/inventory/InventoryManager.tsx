@@ -41,6 +41,7 @@ export const InventoryManager: React.FC = () => {
   const [transferVariantId, setTransferVariantId] = useState('');
   const [selectedTransferImeis, setSelectedTransferImeis] = useState<string[]>([]);
   const [transferQty, setTransferQty] = useState(1);
+  const [transferError, setTransferError] = useState('');
 
   // Stock Adjustment Modal
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
@@ -101,8 +102,9 @@ export const InventoryManager: React.FC = () => {
   };
 
   const handleExecuteTransfer = () => {
+    setTransferError('');
     if (fromBranchId === toBranchId) {
-      alert('Source and destination branches cannot be the same');
+      setTransferError(language === 'bn' ? 'উৎস ও গন্তব্য ব্রাঞ্চ একই হতে পারে না।' : 'Source and destination branches cannot be the same.');
       return;
     }
 
@@ -455,6 +457,12 @@ export const InventoryManager: React.FC = () => {
               </button>
             </div>
             <div className="p-5 space-y-4 text-xs">
+              {transferError && (
+                <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{transferError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="font-semibold text-slate-700 mb-1 block">From Branch / Warehouse</label>

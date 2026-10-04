@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Building, Search, Plus, Filter, Wallet, ArrowUpRight, 
-  FileText, Check, X, Phone, Landmark, Pencil
+  FileText, Check, X, Phone, Landmark, Pencil, Trash2, AlertCircle
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
@@ -10,12 +10,13 @@ import { EditSupplierModal } from './EditSupplierModal';
 
 export const SupplierManager: React.FC = () => {
   const { 
-    suppliers, supplierLedgers, paySupplier, addSupplier,
+    suppliers, supplierLedgers, paySupplier, addSupplier, deleteSupplier,
     cashAccounts, bankAccounts, language 
   } = useERP();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(suppliers[0]?.id || null);
+  const [deleteSupplierTarget, setDeleteSupplierTarget] = useState<{ id: string; name: string; payable: number; error?: string } | null>(null);
 
   // Pay Supplier Modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -90,6 +91,19 @@ export const SupplierManager: React.FC = () => {
     setNewName('');
     setNewCompany('');
     setNewMobile('');
+  };
+
+  const handleConfirmDeleteSupplier = () => {
+    if (!deleteSupplierTarget) return;
+    const res = deleteSupplier(deleteSupplierTarget.id);
+    if (!res.success) {
+      setDeleteSupplierTarget(prev => prev ? { ...prev, error: res.error } : null);
+      return;
+    }
+    const rem = suppliers.filter(s => s.id !== deleteSupplierTarget.id);
+    if (rem.length > 0) setSelectedSupplierId(rem[0].id);
+    else setSelectedSupplierId(null);
+    setDeleteSupplierTarget(null);
   };
 
   return (
@@ -181,18 +195,42 @@ export const SupplierManager: React.FC = () => {
                         {formatBDT(s.currentPayable)}
                       </span>
                     </div>
-                    {s.currentPayable > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      {s.currentPayable > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenPay(s);
+                          }}
+                          className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded font-bold text-[11px] transition shadow-2xs"
+                        >
+                          Pay Supplier
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenPay(s);
+                          setEditingSupplier(s);
                         }}
-                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded font-bold text-[11px] transition"
+                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-blue-700 rounded transition"
+                        title="Edit Supplier"
                       >
-                        Pay Supplier
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteSupplierTarget({ id: s.id, name: s.name, payable: s.currentPayable });
+                        }}
+                        className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition"
+                        title="Delete Supplier"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -222,6 +260,19 @@ export const SupplierManager: React.FC = () => {
                     >
                       <Pencil className="w-3 h-3 text-blue-600" />
                       <span>{language === 'bn' ? 'এডিট' : 'Edit'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteSupplierTarget({
+                        id: selectedSupplier.id,
+                        name: selectedSupplier.name,
+                        payable: selectedSupplier.currentPayable
+                      })}
+                      className="px-2 py-0.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-2xs"
+                      title="Delete Supplier"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>{language === 'bn' ? 'ডিলিট' : 'Delete'}</span>
                     </button>
                   </div>
                   <p className="text-xs text-slate-600 font-medium">{selectedSupplier.company}</p>
@@ -512,6 +563,71 @@ export const SupplierManager: React.FC = () => {
           if (rem.length > 0) setSelectedSupplierId(rem[0].id);
         }}
       />
+
+      {/* Delete Supplier Confirmation Modal */}
+      {deleteSupplierTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-rose-600 text-white flex items-center justify-between">
+              <h3 className="text-sm font-bold flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-white" />
+                <span>{language === 'bn' ? 'সাপ্লায়ার / মহাজন ডিলিট' : 'Delete Supplier Account'}</span>
+              </h3>
+              <button type="button" onClick={() => setDeleteSupplierTarget(null)}>
+                <X className="w-4 h-4 text-rose-200 hover:text-white" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3.5 text-xs">
+              {deleteSupplierTarget.error && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span className="font-medium">{deleteSupplierTarget.error}</span>
+                </div>
+              )}
+
+              <p className="text-slate-700 leading-relaxed">
+                {language === 'bn' ? (
+                  <>
+                    আপনি কি নিশ্চিত যে সাপ্লায়ার <strong className="text-slate-900 font-bold">"{deleteSupplierTarget.name}"</strong> মুছে ফেলতে চান?
+                  </>
+                ) : (
+                  <>
+                    Are you sure you want to permanently delete supplier <strong className="text-slate-900 font-bold">"{deleteSupplierTarget.name}"</strong>?
+                  </>
+                )}
+              </p>
+
+              {deleteSupplierTarget.payable > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] font-medium">
+                  {language === 'bn'
+                    ? `সতর্কতা: এই মহাজনের কাছে আপনার ${formatBDT(deleteSupplierTarget.payable)} দেনা রয়েছে! দেনা পরিশোধ না করা পর্যন্ত ডিলিট করা যাবে না।`
+                    : `Warning: You have an outstanding payable liability of ${formatBDT(deleteSupplierTarget.payable)} to this supplier. Settle before deleting.`}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDeleteSupplierTarget(null)}
+                  className="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
+                >
+                  {language === 'bn' ? 'বাতিল' : 'Cancel'}
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteSupplierTarget.payable > 0}
+                  onClick={handleConfirmDeleteSupplier}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold shadow-xs flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{language === 'bn' ? 'মুছে ফেলুন' : 'Delete'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

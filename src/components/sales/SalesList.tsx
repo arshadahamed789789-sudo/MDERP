@@ -9,7 +9,7 @@ import { NewQuotationModal } from './NewQuotationModal';
 import { SalesReturnModal } from './SalesReturnModal';
 import { QuotationPrintModal } from './QuotationPrintModal';
 import { exportToCSV } from '../../utils/exportToCsv';
-import { Quotation } from '../../types/erp';
+import { Quotation, SaleInvoice } from '../../types/erp';
 
 interface SalesListProps {
   onOpenNewSale: () => void;
@@ -35,6 +35,34 @@ export const SalesList: React.FC<SalesListProps> = ({
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
   const [printingQuotation, setPrintingQuotation] = useState<Quotation | null>(null);
   const [actionMessage, setActionMessage] = useState('');
+
+  // Void Invoice Modal States (replaces prompt/alert)
+  const [voidModalInvoice, setVoidModalInvoice] = useState<SaleInvoice | null>(null);
+  const [voidReasonInput, setVoidReasonInput] = useState('');
+  const [voidError, setVoidError] = useState('');
+
+  const handleOpenVoidModal = (inv: SaleInvoice) => {
+    setVoidModalInvoice(inv);
+    setVoidReasonInput('');
+    setVoidError('');
+  };
+
+  const handleExecuteVoidInvoice = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!voidModalInvoice) return;
+    if (!voidReasonInput.trim()) {
+      setVoidError('Please specify a cancellation reason.');
+      return;
+    }
+    const res = voidSaleInvoice(voidModalInvoice.invoiceNo, voidReasonInput.trim());
+    if (!res.success) {
+      setVoidError(res.error || 'Failed to cancel invoice');
+      return;
+    }
+    setActionMessage(`Invoice ${voidModalInvoice.invoiceNo} successfully cancelled. Stock restored.`);
+    setTimeout(() => setActionMessage(''), 3500);
+    setVoidModalInvoice(null);
+  };
 
   const filteredSales = sales
     .filter(s => currentBranchId === 'all' || s.branchId === currentBranchId)
