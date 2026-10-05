@@ -91,7 +91,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense
               { label: 'Expense Vouchers', value: `${filteredExpenses.length}` },
               { label: 'Categories', value: `${expenseCategories.length}` }
             ]}
-            shareText={`🧾 *${language === 'bn' ? 'দোকান ও পরিচালন ব্যয় স্টেটমেন্ট' : 'Operating Expenses Report'}*\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💸 *খরচ বিবরণ:*\n• মোট ভাউচার সংখ্যা: ${filteredExpenses.length} টি\n• *সর্বমোট খরচের অঙ্ক: ${formatBDT(filteredExpenses.reduce((acc, e) => acc + e.amount, 0))}*\n• ক্যাটাগরি ফিল্টার: ${categoryFilter}\n\nGenerated via DEALERFLOW Hub.`}
+            shareText={`🧾 *${language === 'bn' ? 'দোকান ও পরিচালন ব্যয় স্টেটমেন্ট' : 'Operating Expenses Report'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💸 *খরচ বিবরণ:*\n• মোট ভাউচার সংখ্যা: ${filteredExpenses.length} টি\n• *সর্বমোট খরচের অঙ্ক: ${formatBDT(filteredExpenses.reduce((acc, e) => acc + e.amount, 0))}*\n• ক্যাটাগরি ফিল্টার: ${categoryFilter}\n\nGenerated via DEALERFLOW Hub.`}
             csvData={{
               filename: 'shop_expenses_log',
               headers: ['Voucher No', 'Date', 'Category', 'Amount (BDT)', 'Paid From Account', 'Recipient / Payee', 'Description', 'Branch'],

@@ -153,7 +153,7 @@ export const InventoryManager: React.FC = () => {
               { label: 'Catalog Models', value: `${products.length}` },
               { label: 'Low Stock Alert', value: `${lowStockProducts.length} items` }
             ]}
-            shareText={`📦 *${language === 'bn' ? 'ইনভেন্টরি স্টক ও মালপত্র রিপোর্ট' : 'Inventory Stock Report'}*\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n📱 *স্টক বিবরণ:*\n• মোট হ্যান্ডসেট ও গ্যাজেট মডেল: ${products.length} টি\n• দোকানে বর্তমান মোট ইউনিট: ${totalStockUnits} টি\n• রি-অর্ডারের জন্য লো-স্টক আইটেম: ${lowStockProducts.length} টি\n\nGenerated via DEALERFLOW Hub.`}
+            shareText={`📦 *${language === 'bn' ? 'ইনভেন্টরি স্টক ও মালপত্র রিপোর্ট' : 'Inventory Stock Report'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n📱 *স্টক বিবরণ:*\n• মোট হ্যান্ডসেট ও গ্যাজেট মডেল: ${products.length} টি\n• দোকানে বর্তমান মোট ইউনিট: ${totalStockUnits} টি\n• রি-অর্ডারের জন্য লো-স্টক আইটেম: ${lowStockProducts.length} টি\n\nGenerated via DEALERFLOW Hub.`}
             csvData={{
               filename: 'inventory_catalog_stock',
               headers: ['Model', 'Brand', 'Category', 'Color', 'SKU', 'Current Stock', 'Purchase Cost (BDT)', 'Retail Price (BDT)', 'Wholesale Price (BDT)', 'Warranty Months'],

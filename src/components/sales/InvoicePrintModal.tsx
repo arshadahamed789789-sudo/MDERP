@@ -26,13 +26,13 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
     window.print();
   };
 
-  const invoiceShareText = `🧾 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - বিক্রয় মেমো*
+  const invoiceShareText = `🧾 *${businessConfig?.name || 'DEALERFLOW HUB'} - বিক্রয় মেমো*
 📄 ইনভয়েস নং: *${invoice.invoiceNo}*
 📅 তারিখ: ${formatDate(invoice.date)}
-👤 ক্রেতা: *${invoice.customerName}* ${invoice.customerPhone ? `(${invoice.customerPhone})` : ''}
+👤 ক্রেতা: *${invoice.customerName}* ${invoice.customerMobile ? `(${invoice.customerMobile})` : ''}
 
 🛍️ *পণ্যের বিবরণ:*
-${invoice.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeis?.length ? `\n   IMEI: ${it.imeis.join(', ')}` : ''}`).join('\n')}
+${invoice.items.map((it, idx) => `${idx + 1}. ${it.productName} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeiList?.length ? `\n   IMEI: ${it.imeiList.join(', ')}` : ''}`).join('\n')}
 
 💵 সর্বমোট মূল্য: ${formatBDT(invoice.grandTotal)}
 ✅ পরিশোধিত: ${formatBDT(invoice.paidAmount)}
@@ -77,7 +77,7 @@ ${invoice.dueAmount > 0 ? `⚠️ *বকেয়া পাওনা: ${formatB
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => shareViaWhatsApp(invoiceShareText, invoice.customerPhone)}
+              onClick={() => shareViaWhatsApp(invoiceShareText, invoice.customerMobile)}
               className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
               title="WhatsApp এ ইনভয়েস শেয়ার করুন"
             >

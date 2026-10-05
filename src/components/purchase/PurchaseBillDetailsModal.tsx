@@ -73,13 +73,13 @@ export const PurchaseBillDetailsModal: React.FC<PurchaseBillDetailsModalProps> =
     window.print();
   };
 
-  const billShareText = `📦 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - ক্রয় চালান (Purchase Bill)*
+  const billShareText = `📦 *${businessConfig?.name || 'DEALERFLOW HUB'} - ক্রয় চালান (Purchase Bill)*
 📄 চালান নং: *${purchase.invoiceNo}* ${purchase.supplierInvoiceNo ? `(সাপ্লায়ার মেমো: ${purchase.supplierInvoiceNo})` : ''}
 📅 তারিখ: ${formatDate(purchase.date)}
 🏢 মহাজন / সাপ্লায়ার: *${purchase.supplierName}*
 
 📋 *ক্রয়কৃত পণ্যের বিবরণ:*
-${purchase.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeis?.length ? `\n   IMEI (${it.imeis.length}): ${it.imeis.join(', ')}` : ''}`).join('\n')}
+${purchase.items.map((it, idx) => `${idx + 1}. ${it.productName} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeis?.length ? `\n   IMEI (${it.imeis.length}): ${it.imeis.map(i => i.imei1).join(', ')}` : ''}`).join('\n')}
 
 💵 চালান মোট মূল্য: ${formatBDT(purchase.grandTotal)}
 ✅ পরিশোধিত: ${formatBDT(purchase.paidAmount)}

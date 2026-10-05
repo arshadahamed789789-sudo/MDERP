@@ -25,13 +25,13 @@ export const QuotationPrintModal: React.FC<QuotationPrintModalProps> = ({
     window.print();
   };
 
-  const quoteShareText = `📋 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - দরপ্রস্তাব / Price Quotation*
+  const quoteShareText = `📋 *${businessConfig?.name || 'DEALERFLOW HUB'} - দরপ্রস্তাব / Price Quotation*
 📄 কোটেশন নং: *${quotation.quoteNo}*
 📅 তারিখ: ${formatDate(quotation.date)}
-👤 গ্রাহক: *${quotation.customerName}* ${quotation.customerPhone ? `(${quotation.customerPhone})` : ''}
+👤 গ্রাহক: *${quotation.customerName}* ${quotation.customerMobile ? `(${quotation.customerMobile})` : ''}
 
 📦 *প্রস্তাবিত আইটেম তালিকা:*
-${quotation.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}`).join('\n')}
+${quotation.items.map((it, idx) => `${idx + 1}. ${it.productName} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}`).join('\n')}
 
 💰 সর্বমোট অফার মূল্য: *${formatBDT(quotation.grandTotal)}*
 ⏳ মেয়াদ: ৭ কার্যদিবস প্রযোজ্য`;
@@ -66,7 +66,7 @@ ${quotation.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variant
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => shareViaWhatsApp(quoteShareText, quotation.customerPhone)}
+              onClick={() => shareViaWhatsApp(quoteShareText, quotation.customerMobile)}
               className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
               title="WhatsApp এ কোটেশন শেয়ার করুন"
             >

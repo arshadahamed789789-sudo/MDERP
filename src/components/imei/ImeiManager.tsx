@@ -95,7 +95,7 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
               { label: 'Sold Handsets', value: `${soldCount} pcs` },
               { label: 'Under Warranty', value: `${warrantyCount} pcs` }
             ]}
-            shareText={`📱 *${language === 'bn' ? 'আইএমইআই ডিভাইস ইনভেন্টরি স্টেটমেন্ট' : 'IMEI Device Inventory Statement'}*\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n🔢 *ডিভাইস স্ট্যাটাস:*\n• মোট রেকর্ডকৃত আইএমইআই: ${totalCount} টি\n• দোকানে মজুদ (In Stock): ${inStockCount} টি\n• বিক্রিত (Sold): ${soldCount} টি\n• ওয়ারেন্টি সার্ভিসে (Warranty): ${warrantyCount} টি\n\nGenerated via DEALERFLOW Hub.`}
+            shareText={`📱 *${language === 'bn' ? 'আইএমইআই ডিভাইস ইনভেন্টরি স্টেটমেন্ট' : 'IMEI Device Inventory Statement'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n🔢 *ডিভাইস স্ট্যাটাস:*\n• মোট রেকর্ডকৃত আইএমইআই: ${totalCount} টি\n• দোকানে মজুদ (In Stock): ${inStockCount} টি\n• বিক্রিত (Sold): ${soldCount} টি\n• ওয়ারেন্টি সার্ভিসে (Warranty): ${warrantyCount} টি\n\nGenerated via DEALERFLOW Hub.`}
             csvData={{
               filename: 'imei_inventory_lifecycle',
               headers: ['IMEI 1', 'IMEI 2', 'Serial No', 'Product Model', 'Variant', 'Status', 'Branch', 'Supplier', 'Landed Cost (BDT)', 'Purchase Date', 'Customer', 'Sale Invoice'],
