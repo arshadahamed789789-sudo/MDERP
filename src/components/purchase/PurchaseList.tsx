@@ -171,10 +171,69 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
       </div>
 
       {activeTab === 'bills' ? (
-        /* Purchase Bills Table */
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+        <div className="space-y-4">
+          {/* Mobile Card List (sm:hidden) */}
+          <div className="block sm:hidden space-y-3">
+            {filteredPurchases.length === 0 ? (
+              <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+                {language === 'bn' ? 'কোনো ক্রয় চালান পাওয়া যায়নি' : 'No purchase bills found.'}
+              </div>
+            ) : (
+              filteredPurchases.map(p => (
+                <div key={p.id} className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-sm text-slate-900">{p.invoiceNo}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-100 text-blue-800 uppercase">
+                          {p.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(p.date)} • {p.branchName}</p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPurchase(p)}
+                      className="p-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer active:scale-95"
+                      title="View Bill Details"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                    <span className="font-bold text-slate-900 block">{p.supplierName}</span>
+                    <div className="text-[11px] text-slate-600 truncate">
+                      {p.items.map(it => `${it.quantity}x ${it.productName}`).join(', ')}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Total</span>
+                      <span className="font-bold text-slate-900">{formatBDT(p.grandTotal)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Paid</span>
+                      <span className="font-bold text-emerald-700">{formatBDT(p.paidAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Due</span>
+                      <span className={`font-bold ${p.dueAmount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
+                        {formatBDT(p.dueAmount)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table (hidden sm:block) */}
+          <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
               <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-3">Purchase #</th>
@@ -258,6 +317,7 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
             </table>
           </div>
         </div>
+      </div>
       ) : (
         /* Purchase Returns Table */
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">

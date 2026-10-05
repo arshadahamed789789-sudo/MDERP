@@ -82,7 +82,7 @@ const ERPAppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] text-slate-800 flex flex-col font-sans selection:bg-[#00B074] selection:text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-[#F4F7FB] text-slate-800 flex flex-col font-sans selection:bg-[#00B074] selection:text-white">
       {/* Top Header */}
       <Header
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
@@ -98,7 +98,7 @@ const ERPAppContent: React.FC = () => {
       />
 
       {/* Main Workspace with Sidebar */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden w-full max-w-full min-w-0">
         {/* Navigation Sidebar */}
         <Sidebar
           activeTab={activeTab}
@@ -108,7 +108,7 @@ const ERPAppContent: React.FC = () => {
         />
 
         {/* Content View Area (Smoothly Scrollable Independent from Fixed Sidebar) */}
-        <main className="flex-1 min-w-0 overflow-y-auto h-[calc(100vh-4rem)] p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 space-y-5">
+        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden w-full max-w-full h-[calc(100dvh-4rem)] md:h-[calc(100vh-4rem)] p-3 sm:p-6 lg:p-8 pb-32 md:pb-12 space-y-5 touch-pan-y overscroll-contain">
           {/* RBAC Role Simulator Banner (if not Super Admin) */}
           {currentUser.role !== 'Super Admin' && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-900 animate-in fade-in-50">
@@ -289,6 +289,8 @@ const ERPAppContent: React.FC = () => {
       <FloatingDockNav
         activeTab={activeTab}
         onSelectTab={setActiveTab}
+        onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+        isMobileSidebarOpen={isMobileSidebarOpen}
       />
     </div>
   );

@@ -184,8 +184,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           {/* Smooth Emerald Wave SVG Chart */}
-          <div className="mt-4 h-28 w-full relative">
-            <svg viewBox="0 0 400 120" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+          <div className="mt-4 h-28 w-full relative overflow-hidden">
+            <svg viewBox="0 0 400 120" className="w-full h-full overflow-hidden" preserveAspectRatio="none">
               <defs>
                 <linearGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#00B074" stopOpacity="0.25" />
@@ -514,21 +514,21 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           {language === 'bn' ? 'দ্রুত নেভিগেশন ও অ্যাকশন (Quick Navigation)' : 'Quick Navigation'}
         </h3>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {/* Tile 1: New Order (Mint Emerald) */}
           <button
             type="button"
             onClick={onOpenNewSale}
-            className="p-6 rounded-3xl bg-[#00B074] hover:bg-[#009e68] text-white shadow-lg shadow-emerald-600/20 flex flex-col justify-between h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
+            className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#00B074] hover:bg-[#009e68] text-white shadow-lg shadow-emerald-600/20 flex flex-col justify-between h-32 sm:h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <ClipboardList className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/20 flex items-center justify-center">
+              <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <span className="text-base font-black tracking-tight block">
+              <span className="text-sm sm:text-base font-black tracking-tight block truncate">
                 {language === 'bn' ? 'নতুন অর্ডার / বিক্রয়' : 'New Order'}
               </span>
-              <span className="text-[11px] text-white/80 font-medium">Create Invoice / POS</span>
+              <span className="text-[10px] sm:text-[11px] text-white/80 font-medium block truncate">Create Invoice / POS</span>
             </div>
           </button>
 
@@ -536,16 +536,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <button
             type="button"
             onClick={onOpenNewPurchase}
-            className="p-6 rounded-3xl bg-[#1E60D5] hover:bg-[#1853bf] text-white shadow-lg shadow-blue-600/20 flex flex-col justify-between h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
+            className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#1E60D5] hover:bg-[#1853bf] text-white shadow-lg shadow-blue-600/20 flex flex-col justify-between h-32 sm:h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <Plus className="w-6 h-6 text-white stroke-[3]" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/20 flex items-center justify-center">
+              <Plus className="w-5 h-5 sm:w-6 sm:h-6 text-white stroke-[3]" />
             </div>
             <div>
-              <span className="text-base font-black tracking-tight block">
+              <span className="text-sm sm:text-base font-black tracking-tight block truncate">
                 {language === 'bn' ? 'স্টক ও পণ্য যোগ' : 'Add Stock'}
               </span>
-              <span className="text-[11px] text-white/80 font-medium">Inbound Purchase & IMEI</span>
+              <span className="text-[10px] sm:text-[11px] text-white/80 font-medium block truncate">Inbound Purchase & IMEI</span>
             </div>
           </button>
 
@@ -553,16 +553,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab('customers')}
-            className="p-6 rounded-3xl bg-[#F59E0B] hover:bg-[#dd8e0a] text-white shadow-lg shadow-amber-600/20 flex flex-col justify-between h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
+            className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#F59E0B] hover:bg-[#dd8e0a] text-white shadow-lg shadow-amber-600/20 flex flex-col justify-between h-32 sm:h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <UserCog className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/20 flex items-center justify-center">
+              <UserCog className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <span className="text-base font-black tracking-tight block">
+              <span className="text-sm sm:text-base font-black tracking-tight block truncate">
                 {language === 'bn' ? 'ডিলার ও গ্রাহক' : 'Manage Dealers'}
               </span>
-              <span className="text-[11px] text-white/80 font-medium">Ledgers & Credit Limits</span>
+              <span className="text-[10px] sm:text-[11px] text-white/80 font-medium block truncate">Ledgers & Credit Limits</span>
             </div>
           </button>
 
@@ -570,16 +570,16 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           <button
             type="button"
             onClick={() => onNavigateTab('reports')}
-            className="p-6 rounded-3xl bg-[#BE123C] hover:bg-[#a71034] text-white shadow-lg shadow-rose-600/20 flex flex-col justify-between h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
+            className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-[#BE123C] hover:bg-[#a71034] text-white shadow-lg shadow-rose-600/20 flex flex-col justify-between h-32 sm:h-36 transition-all duration-200 active:scale-95 group text-left cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-              <FileBarChart className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-white/20 flex items-center justify-center">
+              <FileBarChart className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <span className="text-base font-black tracking-tight block">
+              <span className="text-sm sm:text-base font-black tracking-tight block truncate">
                 {language === 'bn' ? 'রিপোর্ট ও লাভ-ক্ষতি' : 'Reports'}
               </span>
-              <span className="text-[11px] text-white/80 font-medium">P&L and Stock Audits</span>
+              <span className="text-[10px] sm:text-[11px] text-white/80 font-medium block truncate">P&L and Stock Audits</span>
             </div>
           </button>
         </div>
@@ -611,7 +611,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
         {/* Detailed Chart Visualization */}
-        <div className="h-64 w-full relative pt-4">
+        <div className="h-64 w-full relative pt-4 overflow-hidden">
           {/* Y Axis Grid lines */}
           <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-40">
             <div className="border-b border-dashed border-slate-200 w-full" />
@@ -622,7 +622,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
           </div>
 
           {/* SVG Multi-bar + Spline wave lines */}
-          <div className="relative h-full flex items-end justify-between px-2 sm:px-6">
+          <div className="relative h-full flex items-end justify-between px-1 sm:px-6">
             {[
               { m: 'Jan', h: 45, val: '৳45k' },
               { m: 'Feb', h: 60, val: '৳60k' },
@@ -637,30 +637,34 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               { m: 'Nov', h: 70, val: '৳70k' },
               { m: 'Dec', h: 100, val: '৳100k' }
             ].map((bar, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group z-10">
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5 sm:gap-2 h-full justify-end group z-10 min-w-0">
                 <div 
-                  className="w-4 sm:w-6 bg-[#1E60D5] hover:bg-[#00B074] rounded-t-lg transition-all duration-300 relative"
+                  className="w-2.5 sm:w-6 bg-[#1E60D5] hover:bg-[#00B074] rounded-t-sm sm:rounded-t-lg transition-all duration-300 relative"
                   style={{ height: `${bar.h}%` }}
                 >
-                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-slate-900 text-white text-[10px] font-mono rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none">
+                  <span className="absolute -top-7 left-1/2 -translate-x-1/2 px-1.5 py-0.5 bg-slate-900 text-white text-[10px] font-mono rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-30">
                     {bar.val}
                   </span>
                 </div>
-                <span className="text-[11px] font-bold text-slate-500">{bar.m}</span>
+                <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 truncate w-full text-center">{bar.m}</span>
               </div>
             ))}
 
             {/* Overlay Spline Waves */}
-            <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" preserveAspectRatio="none">
+            <svg 
+              viewBox="0 0 800 200" 
+              preserveAspectRatio="none"
+              className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden"
+            >
               <path
-                d="M 20,180 Q 90,130 160,110 T 300,80 T 450,110 T 600,60 T 750,40"
+                d="M 20,180 Q 90,130 160,110 T 300,80 T 450,110 T 600,60 T 780,40"
                 fill="none"
                 stroke="#00B074"
                 strokeWidth="3"
                 strokeLinecap="round"
               />
               <path
-                d="M 20,160 Q 90,150 160,130 T 300,100 T 450,130 T 600,80 T 750,50"
+                d="M 20,160 Q 90,150 160,130 T 300,100 T 450,130 T 600,80 T 780,50"
                 fill="none"
                 stroke="#1E60D5"
                 strokeWidth="2.5"

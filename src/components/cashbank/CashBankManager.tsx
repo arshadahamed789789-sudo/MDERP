@@ -184,7 +184,7 @@ export const CashBankManager: React.FC = () => {
       </div>
 
       {/* Navigation Subtabs */}
-      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold">
+      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto whitespace-nowrap scrollbar-none pb-0.5">
         <button
           onClick={() => setActiveTab('accounts')}
           className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 ${
@@ -304,56 +304,93 @@ export const CashBankManager: React.FC = () => {
 
       {/* Tab 2: Cashbook & Transaction Feed */}
       {activeTab === 'transactions' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
-            <span className="font-bold text-slate-700">Account Movement Ledger (Cash In & Out)</span>
-            <span className="text-slate-500">{accountTransactions.length} movements recorded</span>
+        <div className="space-y-3">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {accountTransactions.length === 0 ? (
+              <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+                No cash/bank transactions yet.
+              </div>
+            ) : (
+              accountTransactions.map(trx => (
+                <div key={trx.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-bold text-xs text-slate-900 block">{trx.accountName}</span>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(trx.date)} • {trx.category}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      trx.type === 'IN' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {trx.type === 'IN' ? 'Cash In' : 'Cash Out'}
+                    </span>
+                  </div>
+                  {trx.description && (
+                    <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-xl border border-slate-100">{trx.description}</p>
+                  )}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-mono text-[11px]">{trx.referenceId}</span>
+                    <span className={`font-mono font-black text-base ${trx.type === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                      {trx.type === 'IN' ? `+${formatBDT(trx.amount)}` : `-${formatBDT(trx.amount)}`}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
-                <tr>
-                  <th className="py-2.5 px-3">Date</th>
-                  <th className="py-2.5 px-3">Account</th>
-                  <th className="py-2.5 px-3">Type</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3">Ref ID</th>
-                  <th className="py-2.5 px-3">Description</th>
-                  <th className="py-2.5 px-3 text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {accountTransactions.length === 0 ? (
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
+              <span className="font-bold text-slate-700">Account Movement Ledger (Cash In & Out)</span>
+              <span className="text-slate-500">{accountTransactions.length} movements recorded</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[600px]">
+                <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
                   <tr>
-                    <td colSpan={7} className="py-8 text-center text-slate-400">
-                      No cash/bank transactions yet. Create a sale, purchase, or expense to populate.
-                    </td>
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3">Account</th>
+                    <th className="py-2.5 px-3">Type</th>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3">Ref ID</th>
+                    <th className="py-2.5 px-3">Description</th>
+                    <th className="py-2.5 px-3 text-right">Amount</th>
                   </tr>
-                ) : (
-                  accountTransactions.map(trx => (
-                    <tr key={trx.id} className="hover:bg-slate-50/70">
-                      <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">{formatDate(trx.date)}</td>
-                      <td className="py-2.5 px-3 font-semibold text-slate-900">{trx.accountName}</td>
-                      <td className="py-2.5 px-3">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                          trx.type === 'IN' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                        }`}>
-                          {trx.type === 'IN' ? 'Cash In' : 'Cash Out'}
-                        </span>
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-700">{trx.category}</td>
-                      <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">{trx.referenceId}</td>
-                      <td className="py-2.5 px-3 text-slate-600">{trx.description}</td>
-                      <td className={`py-2.5 px-3 text-right font-mono font-bold ${
-                        trx.type === 'IN' ? 'text-emerald-700' : 'text-rose-600'
-                      }`}>
-                        {trx.type === 'IN' ? `+${formatBDT(trx.amount)}` : `-${formatBDT(trx.amount)}`}
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  {accountTransactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                        No cash/bank transactions yet. Create a sale, purchase, or expense to populate.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    accountTransactions.map(trx => (
+                      <tr key={trx.id} className="hover:bg-slate-50/70">
+                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">{formatDate(trx.date)}</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">{trx.accountName}</td>
+                        <td className="py-2.5 px-3">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                            trx.type === 'IN' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {trx.type === 'IN' ? 'Cash In' : 'Cash Out'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-700">{trx.category}</td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">{trx.referenceId}</td>
+                        <td className="py-2.5 px-3 text-slate-600">{trx.description}</td>
+                        <td className={`py-2.5 px-3 text-right font-mono font-bold ${
+                          trx.type === 'IN' ? 'text-emerald-700' : 'text-rose-600'
+                        }`}>
+                          {trx.type === 'IN' ? `+${formatBDT(trx.amount)}` : `-${formatBDT(trx.amount)}`}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -361,13 +398,66 @@ export const CashBankManager: React.FC = () => {
       {/* Tab 3: Daily Closing Records */}
       {activeTab === 'closing' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          {/* Mobile Card View */}
+          <div className="block sm:hidden space-y-3">
+            {dailyClosings.length === 0 ? (
+              <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+                No past closing records found.
+              </div>
+            ) : (
+              dailyClosings.map(c => (
+                <div key={c.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-bold text-xs text-slate-900 block">{formatDate(c.date)}</span>
+                      <p className="text-[11px] text-slate-400">{c.branchName} • by {c.closedBy}</p>
+                    </div>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                      c.variance === 0 ? 'bg-emerald-100 text-emerald-800' :
+                      c.variance > 0 ? 'bg-blue-100 text-blue-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {c.variance === 0 ? 'Balanced' : c.variance > 0 ? `+${formatBDT(c.variance)}` : `-${formatBDT(Math.abs(c.variance))}`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Expected Cash</span>
+                      <span className="font-bold font-mono text-slate-800">{formatBDT(c.expectedClosingCash)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Actual Physical Count</span>
+                      <span className="font-bold font-mono text-emerald-700">{formatBDT(c.actualPhysicalCash)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-1 text-[11px] font-mono text-center text-slate-600">
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans">Sales</span>
+                      <span>+{formatBDT(c.totalCashSales)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans">Collections</span>
+                      <span>+{formatBDT(c.totalCustomerCollection)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 block font-sans">Expenses</span>
+                      <span className="text-rose-600">-{formatBDT(c.totalExpenses)}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table */}
+          <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
               <span className="font-bold text-slate-700">Past Daily Cash Closing Verifications</span>
               <span className="text-slate-500">{dailyClosings.length} closures on record</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[750px]">
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
                   <tr>
                     <th className="py-2.5 px-3">Date</th>

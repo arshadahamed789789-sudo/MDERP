@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Smartphone, Search, Filter, ShieldCheck, CheckCircle2, 
-  ArrowRight, Clock, User, Building, Truck, AlertCircle, Tag, Download, Pencil
+  ArrowRight, Clock, User, Building, Truck, AlertCircle, Tag, Download, Pencil, ArrowLeft, List
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
@@ -20,6 +20,7 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery || '');
   const [statusFilter, setStatusFilter] = useState<'ALL' | ImeiStatus>('ALL');
   const [selectedImei, setSelectedImei] = useState<ProductIMEI | null>(null);
+  const [mobileView, setMobileView] = useState<'list' | 'timeline'>('list');
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
   const [barcodeTargetImei, setBarcodeTargetImei] = useState<ProductIMEI | null>(null);
   const [editingImei, setEditingImei] = useState<ProductIMEI | null>(null);
@@ -154,10 +155,38 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
         </button>
       </div>
 
+      {/* Mobile View Switcher (lg:hidden) */}
+      <div className="lg:hidden flex items-center bg-slate-200/80 p-1 rounded-2xl text-xs font-bold gap-1">
+        <button
+          type="button"
+          onClick={() => setMobileView('list')}
+          className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            mobileView === 'list' 
+              ? 'bg-white text-emerald-700 shadow-xs' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <List className="w-3.5 h-3.5" />
+          <span>{language === 'bn' ? `ডিভাইস তালিকা (${filteredImeis.length})` : `Device List (${filteredImeis.length})`}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileView('timeline')}
+          className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+            mobileView === 'timeline' 
+              ? 'bg-white text-emerald-700 shadow-xs' 
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Smartphone className="w-3.5 h-3.5" />
+          <span className="truncate">{selectedImei ? selectedImei.imei1 : (language === 'bn' ? 'টাইমলাইন' : 'Timeline')}</span>
+        </button>
+      </div>
+
       {/* Main Content Layout: Grid of IMEIs + Detailed History Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Cols: IMEI Search & Table */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className={`lg:col-span-2 space-y-4 ${mobileView === 'timeline' ? 'hidden lg:block' : 'block'}`}>
           <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-3">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
@@ -184,7 +213,7 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
 
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto max-h-[60vh]">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[560px]">
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider sticky top-0 z-10">
                   <tr>
                     <th className="py-2.5 px-3">IMEI 1 / Serial</th>
@@ -206,7 +235,10 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
                     filteredImeis.map(im => (
                       <tr 
                         key={im.imei1} 
-                        onClick={() => setSelectedImei(im)}
+                        onClick={() => {
+                          setSelectedImei(im);
+                          setMobileView('timeline');
+                        }}
                         className={`hover:bg-slate-50 cursor-pointer transition ${selectedImei?.imei1 === im.imei1 ? 'bg-emerald-50/70 border-l-4 border-l-emerald-600' : ''}`}
                       >
                         <td className="py-2.5 px-3 font-mono font-bold text-slate-900">
@@ -263,6 +295,7 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedImei(im);
+                                setMobileView('timeline');
                               }}
                               className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-semibold text-[11px]"
                             >
@@ -280,7 +313,17 @@ export const ImeiManager: React.FC<ImeiManagerProps> = ({ initialSearchQuery }) 
         </div>
 
         {/* Right 1 Col: Complete Device Lifecycle Timeline */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5">
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 ${mobileView === 'list' ? 'hidden lg:block' : 'block'}`}>
+          {/* Mobile Back Button */}
+          <button
+            type="button"
+            onClick={() => setMobileView('list')}
+            className="lg:hidden mb-3 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-1.5 px-3 rounded-xl flex items-center gap-1.5 self-start cursor-pointer transition"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{language === 'bn' ? '← আইএমইআই তালিকায় ফিরুন' : '← Back to Device List'}</span>
+          </button>
+
           <div className="border-b border-slate-100 pb-3 mb-4 flex items-center justify-between">
             <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <Smartphone className="w-4 h-4 text-emerald-600" />

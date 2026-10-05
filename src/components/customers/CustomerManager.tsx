@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Users, Search, Plus, Filter, Wallet, ArrowDownRight, 
-  FileText, ShieldAlert, Check, X, Phone, MapPin, Building, Clock, MessageSquare, Download, Pencil, Trash2, AlertCircle
+  FileText, ShieldAlert, Check, X, Phone, MapPin, Building, Clock, MessageSquare, Download, Pencil, Trash2, AlertCircle, ArrowLeft
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
@@ -30,6 +30,7 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialCustomerId || customers[0]?.id || null);
+  const [mobileLedgerView, setMobileLedgerView] = useState<'list' | 'statement'>('list');
   const [deleteCustomerTarget, setDeleteCustomerTarget] = useState<{ id: string; name: string; due: number; error?: string } | null>(null);
 
   React.useEffect(() => {
@@ -338,135 +339,177 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
       )}
 
       {viewTab === 'ledger' && (
-        /* Main 2-Column Split: Customer List & Customer Ledger Statement */
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: List of Customers */}
-        <div className="space-y-3">
-          <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search name, phone, shop..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full text-xs pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50"
-              />
-            </div>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="w-full text-xs font-medium p-2 border border-slate-200 rounded-lg bg-slate-50"
+        <div className="space-y-4">
+          {/* Mobile View Switcher (lg:hidden) */}
+          <div className="lg:hidden flex items-center bg-slate-200/80 p-1 rounded-2xl text-xs font-bold gap-1">
+            <button
+              type="button"
+              onClick={() => setMobileLedgerView('list')}
+              className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                mobileLedgerView === 'list' 
+                  ? 'bg-white text-emerald-800 shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <option value="ALL">All Categories</option>
-              <option value="Wholesale Dealer">Wholesale Dealers</option>
-              <option value="Sub Dealer">Sub Dealers</option>
-              <option value="Retail Customer">Retail Customers</option>
-              <option value="VIP Customer">VIP Customers</option>
-            </select>
+              <Users className="w-3.5 h-3.5" />
+              <span>{language === 'bn' ? `কাস্টমার তালিকা (${filteredCustomers.length})` : `Customers (${filteredCustomers.length})`}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileLedgerView('statement')}
+              className={`flex-1 py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                mobileLedgerView === 'statement' 
+                  ? 'bg-white text-emerald-800 shadow-xs' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span className="truncate">{selectedCustomer ? (selectedCustomer.businessName || selectedCustomer.name) : (language === 'bn' ? 'খতিয়ান বিবরণী' : 'Statement')}</span>
+            </button>
           </div>
 
-          <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
-            {filteredCustomers.map(c => {
-              const isSelected = selectedCustomerId === c.id;
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCustomerId(c.id)}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition ${
-                    isSelected 
-                      ? 'bg-white border-emerald-500 shadow-md ring-1 ring-emerald-500' 
-                      : 'bg-white border-slate-200 hover:border-slate-300'
-                  }`}
+          {/* Main 2-Column Split: Customer List & Customer Ledger Statement */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column: List of Customers */}
+            <div className={`space-y-3 ${mobileLedgerView === 'statement' ? 'hidden lg:block' : 'block'}`}>
+              <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search name, phone, shop..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full text-xs pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50"
+                  />
+                </div>
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="w-full text-xs font-medium p-2 border border-slate-200 rounded-lg bg-slate-50"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-bold text-xs text-slate-900">
-                        {c.businessName || c.name}
-                      </h4>
-                      {c.businessName && <p className="text-[11px] text-slate-500">{c.name}</p>}
-                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">{c.mobile}</p>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
-                      {c.priceLevel}
-                    </span>
-                  </div>
+                  <option value="ALL">All Categories</option>
+                  <option value="Wholesale Dealer">Wholesale Dealers</option>
+                  <option value="Sub Dealer">Sub Dealers</option>
+                  <option value="Retail Customer">Retail Customers</option>
+                  <option value="VIP Customer">VIP Customers</option>
+                </select>
+              </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block uppercase">Current Due</span>
-                      <span className={`font-mono font-bold ${c.currentDue > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-                        {formatBDT(c.currentDue)}
-                      </span>
+              <div className="space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+                {filteredCustomers.map(c => {
+                  const isSelected = selectedCustomerId === c.id;
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCustomerId(c.id);
+                        setMobileLedgerView('statement');
+                      }}
+                      className={`p-3.5 rounded-xl border cursor-pointer transition ${
+                        isSelected 
+                          ? 'bg-white border-emerald-500 shadow-md ring-1 ring-emerald-500' 
+                          : 'bg-white border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h4 className="font-bold text-xs text-slate-900">
+                            {c.businessName || c.name}
+                          </h4>
+                          {c.businessName && <p className="text-[11px] text-slate-500">{c.name}</p>}
+                          <p className="text-[11px] text-slate-500 font-mono mt-0.5">{c.mobile}</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700">
+                          {c.priceLevel}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block uppercase">Current Due</span>
+                          <span className={`font-mono font-bold ${c.currentDue > 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                            {formatBDT(c.currentDue)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {c.currentDue > 0 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenPayment(c);
+                              }}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded font-bold text-[11px] transition shadow-2xs"
+                            >
+                              Receive Due
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCustomer(c);
+                            }}
+                            className="p-1 hover:bg-slate-100 text-slate-400 hover:text-emerald-700 rounded transition"
+                            title="Edit Customer"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteCustomerTarget({ id: c.id, name: c.businessName || c.name, due: c.currentDue });
+                            }}
+                            className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition"
+                            title="Delete Customer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {c.currentDue > 0 && (
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Right 2 Columns: Detailed Customer Ledger Statement */}
+            <div className={`lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-5 flex flex-col justify-between ${mobileLedgerView === 'list' ? 'hidden lg:flex' : 'flex'}`}>
+              {/* Mobile Back Button */}
+              <button
+                type="button"
+                onClick={() => setMobileLedgerView('list')}
+                className="lg:hidden mb-3 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 py-1.5 px-3 rounded-xl flex items-center gap-1.5 self-start cursor-pointer transition"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{language === 'bn' ? '← কাস্টমার তালিকায় ফিরুন' : '← Back to Customer List'}</span>
+              </button>
+
+              {!selectedCustomer ? (
+                <div className="py-20 text-center text-slate-400">
+                  <Users className="w-12 h-12 mx-auto mb-2 text-slate-300 stroke-1" />
+                  <p className="text-sm font-semibold">Select a customer to view their complete ledger statement.</p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {/* Profile Card Header */}
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-extrabold text-base text-slate-900">
+                          {selectedCustomer.businessName || selectedCustomer.name}
+                        </h3>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase">
+                          {selectedCustomer.customerType}
+                        </span>
                         <button
                           type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenPayment(c);
-                          }}
-                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded font-bold text-[11px] transition shadow-2xs"
+                          onClick={() => setEditingCustomer(selectedCustomer)}
+                          className="px-2 py-0.5 bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-2xs"
+                          title="Edit Customer Profile"
                         >
-                          Receive Due
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingCustomer(c);
-                        }}
-                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-emerald-700 rounded transition"
-                        title="Edit Customer"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteCustomerTarget({ id: c.id, name: c.businessName || c.name, due: c.currentDue });
-                        }}
-                        className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition"
-                        title="Delete Customer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right 2 Columns: Detailed Customer Ledger Statement */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col justify-between">
-          {!selectedCustomer ? (
-            <div className="py-20 text-center text-slate-400">
-              <Users className="w-12 h-12 mx-auto mb-2 text-slate-300 stroke-1" />
-              <p className="text-sm font-semibold">Select a customer to view their complete ledger statement.</p>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              {/* Profile Card Header */}
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-base text-slate-900">
-                      {selectedCustomer.businessName || selectedCustomer.name}
-                    </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase">
-                      {selectedCustomer.customerType}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEditingCustomer(selectedCustomer)}
-                      className="px-2 py-0.5 bg-white hover:bg-slate-200 text-slate-700 border border-slate-300 rounded text-[11px] font-semibold transition flex items-center gap-1 shadow-2xs"
-                      title="Edit Customer Profile"
-                    >
                       <Pencil className="w-3 h-3 text-emerald-600" />
                       <span>{language === 'bn' ? 'এডিট' : 'Edit'}</span>
                     </button>
@@ -571,8 +614,8 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
                   <span>Official Customer Ledger (খতিয়ান বই)</span>
                 </h4>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-xs">
+                <div className="border border-slate-200 rounded-xl overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[500px]">
                     <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
                       <tr>
                         <th className="py-2.5 px-3">Date</th>
@@ -622,7 +665,8 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
           )}
         </div>
       </div>
-      )}
+    </div>
+  )}
 
       {viewTab === 'aging' && (
         <AgingDueDashboard onCollectDue={handleOpenPayment} />

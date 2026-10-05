@@ -195,14 +195,77 @@ export const WarrantyManager: React.FC = () => {
         )}
       </div>
 
-      {/* Active Claims Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
-          <span className="font-bold text-slate-700">Ongoing Warranty Service Claims ({warrantyClaims.length})</span>
+      {/* Active Claims List / Table */}
+      <div className="space-y-3">
+        {/* Mobile Card View (block sm:hidden) */}
+        <div className="block sm:hidden space-y-3">
+          {warrantyClaims.length === 0 ? (
+            <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+              No active warranty claims.
+            </div>
+          ) : (
+            warrantyClaims.map(claim => (
+              <div key={claim.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-xs text-slate-900">{claim.claimNo}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                        claim.status === 'PENDING' ? 'bg-amber-100 text-amber-800' :
+                        claim.status === 'IN_REPAIR' ? 'bg-blue-100 text-blue-800' :
+                        claim.status === 'DELIVERED' ? 'bg-emerald-100 text-emerald-800' :
+                        'bg-slate-200 text-slate-700'
+                      }`}>
+                        {claim.status}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(claim.date)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingClaim(claim)}
+                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                    title="Edit Claim"
+                  >
+                    <Pencil className="w-4 h-4 text-blue-600" />
+                  </button>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-900">{claim.productName}</span>
+                    <span className="font-mono text-[11px] text-slate-600 font-bold">IMEI: {claim.imei}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{claim.customerName} • {claim.customerPhone}</p>
+                  <p className="text-xs text-rose-600 font-medium pt-1">
+                    <strong>Issue:</strong> {claim.problemDescription}
+                  </p>
+                </div>
+
+                {claim.status !== 'DELIVERED' && (
+                  <div className="pt-2 border-t border-slate-100 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => updateWarrantyStatus(claim.id, 'DELIVERED', 'Repaired and returned to customer in working condition')}
+                      className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs transition"
+                    >
+                      Mark Delivered (সম্পন্ন)
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center text-xs">
+            <span className="font-bold text-slate-700">Ongoing Warranty Service Claims ({warrantyClaims.length})</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[650px]">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
               <tr>
                 <th className="py-2.5 px-3">Claim #</th>
                 <th className="py-2.5 px-3">Date</th>
@@ -268,6 +331,7 @@ export const WarrantyManager: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
 
       {/* Edit / Update Warranty Claim Modal */}
       <EditWarrantyModal

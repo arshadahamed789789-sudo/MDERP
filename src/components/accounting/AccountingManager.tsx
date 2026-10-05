@@ -144,7 +144,7 @@ export const AccountingManager: React.FC = () => {
 
       {/* 1. PROFIT & LOSS STATEMENT */}
       {activeTab === 'pnl' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 max-w-4xl space-y-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-6 max-w-4xl space-y-6">
           <div className="border-b border-slate-200 pb-4 flex justify-between items-start">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">
@@ -189,7 +189,7 @@ export const AccountingManager: React.FC = () => {
             </div>
 
             {/* Gross Profit Banner */}
-            <div className="p-4 rounded-xl bg-teal-50/80 border border-teal-200 flex justify-between items-center text-sm font-black text-teal-900">
+            <div className="p-4 rounded-xl bg-teal-50/80 border border-teal-200 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-sm font-black text-teal-900">
               <div>
                 <span>GROSS PROFIT (মোট লাভ)</span>
                 <span className="block text-xs font-semibold text-teal-700 mt-0.5">
@@ -216,7 +216,7 @@ export const AccountingManager: React.FC = () => {
             </div>
 
             {/* Net Profit Banner */}
-            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 text-white flex justify-between items-center text-base font-black shadow-md">
+            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-800 text-white flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-base font-black shadow-md">
               <div>
                 <span>NET BUSINESS PROFIT (প্রকৃত নিট লাভ)</span>
                 <span className="block text-xs font-medium text-emerald-200 mt-0.5">
@@ -231,7 +231,7 @@ export const AccountingManager: React.FC = () => {
 
       {/* 2. BALANCE SHEET */}
       {activeTab === 'balance_sheet' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 max-w-4xl space-y-6">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-4 sm:p-6 max-w-4xl space-y-6">
           <div className="border-b border-slate-200 pb-4 flex justify-between items-start">
             <div>
               <h2 className="text-base font-extrabold text-slate-900">
@@ -333,43 +333,45 @@ export const AccountingManager: React.FC = () => {
             </span>
           </div>
 
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3">Account Code</th>
-                <th className="py-2.5 px-3">Account Title</th>
-                <th className="py-2.5 px-3">Classification</th>
-                <th className="py-2.5 px-3 text-right">Debit Balance (৳)</th>
-                <th className="py-2.5 px-3 text-right">Credit Balance (৳)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {chartOfAccounts.map(acc => (
-                <tr key={acc.code} className="hover:bg-slate-50">
-                  <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{acc.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-slate-800">{acc.name}</td>
-                  <td className="py-2.5 px-3">
-                    <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 font-bold rounded">
-                      {acc.type}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
-                    {acc.normalBalance === 'DEBIT' ? formatBDT(acc.balance) : '-'}
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
-                    {acc.normalBalance === 'CREDIT' ? formatBDT(acc.balance) : '-'}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[560px]">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3">Account Code</th>
+                  <th className="py-2.5 px-3">Account Title</th>
+                  <th className="py-2.5 px-3">Classification</th>
+                  <th className="py-2.5 px-3 text-right">Debit Balance (৳)</th>
+                  <th className="py-2.5 px-3 text-right">Credit Balance (৳)</th>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-800 text-xs">
-              <tr>
-                <td colSpan={3} className="py-3 px-3 uppercase text-right">Trial Balance Totals:</td>
-                <td className="py-3 px-3 text-right font-mono text-emerald-800 text-sm">{formatBDT(totalDebitTrial)}</td>
-                <td className="py-3 px-3 text-right font-mono text-emerald-800 text-sm">{formatBDT(totalCreditTrial)}</td>
-              </tr>
-            </tfoot>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {chartOfAccounts.map(acc => (
+                  <tr key={acc.code} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{acc.code}</td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-800">{acc.name}</td>
+                    <td className="py-2.5 px-3">
+                      <span className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 font-bold rounded">
+                        {acc.type}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
+                      {acc.normalBalance === 'DEBIT' ? formatBDT(acc.balance) : '-'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-semibold text-slate-900">
+                      {acc.normalBalance === 'CREDIT' ? formatBDT(acc.balance) : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-slate-100 font-bold text-slate-900 border-t-2 border-slate-800 text-xs">
+                <tr>
+                  <td colSpan={3} className="py-3 px-3 uppercase text-right">Trial Balance Totals:</td>
+                  <td className="py-3 px-3 text-right font-mono text-emerald-800 text-sm">{formatBDT(totalDebitTrial)}</td>
+                  <td className="py-3 px-3 text-right font-mono text-emerald-800 text-sm">{formatBDT(totalCreditTrial)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       )}
 
@@ -395,33 +397,35 @@ export const AccountingManager: React.FC = () => {
                   <span className="text-slate-600 font-medium">{jrn.description}</span>
                 </div>
 
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50/50 text-slate-400 font-semibold border-b border-slate-100 text-[11px] uppercase">
-                    <tr>
-                      <th className="py-2 px-3">Account Code & Name</th>
-                      <th className="py-2 px-3 text-right">Debit (৳)</th>
-                      <th className="py-2 px-3 text-right">Credit (৳)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {jrn.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="py-2 px-3">
-                          <span className="font-mono text-slate-500 mr-2">{item.accountCode}</span>
-                          <span className={item.credit > 0 ? 'pl-6 text-slate-600' : 'font-semibold text-slate-900'}>
-                            {item.accountName}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900">
-                          {item.debit > 0 ? formatBDT(item.debit) : '-'}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900">
-                          {item.credit > 0 ? formatBDT(item.credit) : '-'}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs min-w-[500px]">
+                    <thead className="bg-slate-50/50 text-slate-400 font-semibold border-b border-slate-100 text-[11px] uppercase">
+                      <tr>
+                        <th className="py-2 px-3">Account Code & Name</th>
+                        <th className="py-2 px-3 text-right">Debit (৳)</th>
+                        <th className="py-2 px-3 text-right">Credit (৳)</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {jrn.items.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="py-2 px-3">
+                            <span className="font-mono text-slate-500 mr-2">{item.accountCode}</span>
+                            <span className={item.credit > 0 ? 'pl-6 text-slate-600' : 'font-semibold text-slate-900'}>
+                              {item.accountName}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900">
+                            {item.debit > 0 ? formatBDT(item.debit) : '-'}
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900">
+                            {item.credit > 0 ? formatBDT(item.credit) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ))
           )}
@@ -434,34 +438,36 @@ export const AccountingManager: React.FC = () => {
           <div className="p-3 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-700">
             Standard Chart of Accounts (COA) for Bangladesh Mobile Businesses
           </div>
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3">Code</th>
-                <th className="py-2.5 px-3">Account Name</th>
-                <th className="py-2.5 px-3">Type</th>
-                <th className="py-2.5 px-3">Normal Balance</th>
-                <th className="py-2.5 px-3 text-right">Current Balance</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {chartOfAccounts.map(a => (
-                <tr key={a.code} className="hover:bg-slate-50">
-                  <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{a.code}</td>
-                  <td className="py-2.5 px-3 font-semibold text-slate-800">{a.name}</td>
-                  <td className="py-2.5 px-3">
-                    <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-slate-100 text-slate-700">
-                      {a.type}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">{a.normalBalance}</td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                    {formatBDT(a.balance)}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[560px]">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3">Code</th>
+                  <th className="py-2.5 px-3">Account Name</th>
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Normal Balance</th>
+                  <th className="py-2.5 px-3 text-right">Current Balance</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {chartOfAccounts.map(a => (
+                  <tr key={a.code} className="hover:bg-slate-50">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{a.code}</td>
+                    <td className="py-2.5 px-3 font-semibold text-slate-800">{a.name}</td>
+                    <td className="py-2.5 px-3">
+                      <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-slate-100 text-slate-700">
+                        {a.type}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px]">{a.normalBalance}</td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                      {formatBDT(a.balance)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

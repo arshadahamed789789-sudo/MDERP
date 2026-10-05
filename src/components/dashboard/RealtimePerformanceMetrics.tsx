@@ -395,74 +395,74 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
       {/* 4 Summary Stat Pills above charts */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Metric 1: Total Period Sales */}
-        <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
+        <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex items-center justify-between min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 mr-2">
+            <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 uppercase tracking-wider block truncate">
               {timeRange.toUpperCase()} Sales Revenue
             </span>
-            <span className="text-lg sm:text-xl font-black font-mono text-emerald-950 mt-0.5 block">
+            <span className="text-base sm:text-xl font-black font-mono text-emerald-950 mt-0.5 block truncate">
               {formatBDT(totalRangeRevenue)}
             </span>
-            <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5">
-              <ArrowUpRight className="w-3 h-3 text-emerald-600" />
-              <span>+{formatBDT(totalRangeProfit)} Net Margin</span>
+            <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1 mt-0.5 truncate">
+              <ArrowUpRight className="w-3 h-3 text-emerald-600 shrink-0" />
+              <span className="truncate">+{formatBDT(totalRangeProfit)} Margin</span>
             </span>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
             <Zap className="w-4 h-4" />
           </div>
         </div>
 
         {/* Metric 2: Net Cash Inflow */}
-        <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-blue-800 uppercase tracking-wider block">
-              Net Cash Flow ({timeRange.toUpperCase()})
+        <div className="p-3 sm:p-4 rounded-2xl bg-blue-50/70 border border-blue-100 flex items-center justify-between min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 mr-2">
+            <span className="text-[10px] sm:text-[11px] font-bold text-blue-800 uppercase tracking-wider block truncate">
+              Net Cash ({timeRange.toUpperCase()})
             </span>
-            <span className={`text-lg sm:text-xl font-black font-mono mt-0.5 block ${netCashFlow >= 0 ? 'text-blue-950' : 'text-rose-600'}`}>
+            <span className={`text-base sm:text-xl font-black font-mono mt-0.5 block truncate ${netCashFlow >= 0 ? 'text-blue-950' : 'text-rose-600'}`}>
               {netCashFlow >= 0 ? `+${formatBDT(netCashFlow)}` : `-${formatBDT(Math.abs(netCashFlow))}`}
             </span>
-            <span className="text-[10px] text-blue-700 font-semibold block mt-0.5">
-              In: {formatBDT(totalInflow)} • Out: {formatBDT(totalOutflow)}
+            <span className="text-[10px] text-blue-700 font-semibold block mt-0.5 truncate">
+              In: {formatBDT(totalInflow)}
             </span>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-[#1E60D5] text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#1E60D5] text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
             <Wallet className="w-4 h-4" />
           </div>
         </div>
 
         {/* Metric 3: Top Brand by Demand */}
-        <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-100 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider block">
+        <div className="p-3 sm:p-4 rounded-2xl bg-purple-50/70 border border-purple-100 flex items-center justify-between min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 mr-2">
+            <span className="text-[10px] sm:text-[11px] font-bold text-purple-800 uppercase tracking-wider block truncate">
               Leading Brand
             </span>
-            <span className="text-lg sm:text-xl font-black text-purple-950 mt-0.5 block">
+            <span className="text-base sm:text-xl font-black text-purple-950 mt-0.5 block truncate">
               {topBrand.brandName}
             </span>
-            <span className="text-[10px] text-purple-700 font-semibold block mt-0.5">
-              {formatBDT(topBrand.revenue)} ({topBrand.units || 0} units)
+            <span className="text-[10px] text-purple-700 font-semibold block mt-0.5 truncate">
+              {formatBDT(topBrand.revenue)} ({topBrand.units || 0} pcs)
             </span>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-500/20">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-500/20">
             <Smartphone className="w-4 h-4" />
           </div>
         </div>
 
         {/* Metric 4: Daily Average Run Rate */}
-        <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-100 flex items-center justify-between">
-          <div>
-            <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+        <div className="p-3 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-100 flex items-center justify-between min-w-0 overflow-hidden">
+          <div className="min-w-0 flex-1 mr-2">
+            <span className="text-[10px] sm:text-[11px] font-bold text-amber-800 uppercase tracking-wider block truncate">
               Daily Run Rate
             </span>
-            <span className="text-lg sm:text-xl font-black font-mono text-amber-950 mt-0.5 block">
+            <span className="text-base sm:text-xl font-black font-mono text-amber-950 mt-0.5 block truncate">
               {formatBDT(Math.round(totalRangeRevenue / daysCount))}
             </span>
-            <span className="text-[10px] text-amber-700 font-semibold block mt-0.5">
-              Avg daily sales turnover
+            <span className="text-[10px] text-amber-700 font-semibold block mt-0.5 truncate">
+              Avg daily sales
             </span>
           </div>
-          <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/20">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/20">
             <BarChart2 className="w-4 h-4" />
           </div>
         </div>
@@ -472,10 +472,10 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
       <div className="space-y-6">
         {/* CHART ROW 1: Daily Sales & Top Brands (Rendered in 'all', 'sales', or 'brands' tab) */}
         {(activeTab === 'all' || activeTab === 'sales' || activeTab === 'brands') && (
-          <div className={`grid grid-cols-1 ${activeTab === 'all' ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6`}>
+          <div className={`grid grid-cols-1 ${activeTab === 'all' ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6 min-w-0`}>
             {/* 1. Daily Sales Trend (AreaChart) */}
             {(activeTab === 'all' || activeTab === 'sales') && (
-              <div className={`${activeTab === 'all' ? 'lg:col-span-2' : ''} bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between`}>
+              <div className={`${activeTab === 'all' ? 'lg:col-span-2' : ''} bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between min-w-0 overflow-hidden`}>
                 <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <div>
                     <h3 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -497,7 +497,7 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
                 </div>
 
                 {/* ResponsiveContainer for AreaChart */}
-                <div className="w-full h-64 sm:h-72">
+                <div className="w-full h-64 sm:h-72 min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
                       data={dailySalesData}
@@ -553,7 +553,7 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
 
             {/* 2. Top-Selling Mobile Brands (Donut Pie + Ranked Bar) */}
             {(activeTab === 'all' || activeTab === 'brands') && (
-              <div className="bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between">
+              <div className="bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 flex flex-col justify-between min-w-0 overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <h3 className="text-sm font-black text-slate-900 tracking-tight">
@@ -567,7 +567,7 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
                 </div>
 
                 {/* Donut Chart */}
-                <div className="w-full h-44 relative flex items-center justify-center my-1">
+                <div className="w-full h-44 relative flex items-center justify-center my-1 min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Tooltip content={<CustomBrandTooltip />} />
@@ -634,7 +634,7 @@ export const RealtimePerformanceMetrics: React.FC<RealtimePerformanceMetricsProp
 
         {/* CHART ROW 2: Cash Flow (Inflow vs Outflow) BarChart (Rendered in 'all' or 'cashflow' tab) */}
         {(activeTab === 'all' || activeTab === 'cashflow') && (
-          <div className="bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 space-y-4">
+          <div className="bg-slate-50/60 rounded-3xl p-4 sm:p-5 border border-slate-200/80 space-y-4 min-w-0 overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-2">

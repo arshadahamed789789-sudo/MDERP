@@ -417,8 +417,8 @@ export const NewPurchaseModal: React.FC<NewPurchaseModalProps> = ({
           </div>
 
           {/* Items Draft Table */}
-          <div className="rounded-xl border border-slate-200 overflow-hidden">
-            <table className="w-full text-left text-xs">
+          <div className="rounded-xl border border-slate-200 overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">Item</th>

@@ -158,10 +158,60 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense
         </div>
       </div>
 
-      {/* Expense Vouchers Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+      {/* Expense Vouchers List / Table */}
+      <div className="space-y-3">
+        {/* Mobile Card View (block sm:hidden) */}
+        <div className="block sm:hidden space-y-3">
+          {filteredExpenses.length === 0 ? (
+            <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+              No expense records found.
+            </div>
+          ) : (
+            filteredExpenses.map(exp => (
+              <div key={exp.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-xs text-slate-900">{exp.voucherNo}</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700">
+                        {exp.categoryName}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(exp.date)} • {exp.branchName}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingExpense(exp)}
+                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                    title="Edit Expense"
+                  >
+                    <Pencil className="w-4 h-4 text-rose-600" />
+                  </button>
+                </div>
+
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-900">Paid to: {exp.recipient}</span>
+                    <span className="text-[11px] text-slate-500 font-medium">via {exp.paidFromAccountName}</span>
+                  </div>
+                  {exp.description && (
+                    <p className="text-[11px] text-slate-600 pt-0.5">{exp.description}</p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-medium">Voucher Amount</span>
+                  <span className="font-mono font-black text-base text-rose-600">{formatBDT(exp.amount)}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[650px]">
             <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
               <tr>
                 <th className="py-3 px-3">Voucher #</th>
@@ -223,6 +273,7 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense
           </table>
         </div>
       </div>
+    </div>
 
       {/* Add Expense Modal */}
       {showAddModal && (

@@ -275,7 +275,7 @@ export const InventoryManager: React.FC = () => {
 
             {/* Variants Table with Pricing Levels */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full text-left text-xs min-w-[620px]">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider text-[11px]">
                     <th className="py-2.5 px-3">Variant (RAM/Storage/Color)</th>

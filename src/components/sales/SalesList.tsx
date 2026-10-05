@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   ShoppingBag, Search, Plus, Filter, Eye, Printer, RotateCcw, 
-  Download, ArrowDownRight, User, Calendar, FileText, CheckCircle2, Trash2, Ban, Pencil
+  Download, ArrowDownRight, User, Calendar, FileText, CheckCircle2, Trash2, Ban, Pencil, X
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
@@ -367,8 +367,83 @@ export const SalesList: React.FC<SalesListProps> = ({
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+          {/* Mobile Card List (sm:hidden) */}
+          <div className="block sm:hidden space-y-3">
+            {filteredSales.length === 0 ? (
+              <div className="bg-white p-8 text-center text-slate-400 rounded-2xl border border-slate-200">
+                {language === 'bn' ? 'কোনো বিক্রয় রেকর্ড পাওয়া যায়নি' : 'No sales invoices found.'}
+              </div>
+            ) : (
+              filteredSales.map(inv => (
+                <div key={inv.id} className="bg-white p-4 rounded-2xl border border-slate-200/90 shadow-xs space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-sm text-slate-900">{inv.invoiceNo}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
+                          inv.status === 'CANCELLED' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {inv.status}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-0.5">{formatDate(inv.date)} • {inv.branchName}</p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onViewInvoice(inv.invoiceNo)}
+                        className="p-2 rounded-xl bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 transition min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer active:scale-95"
+                        title="Print / View"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {inv.status !== 'CANCELLED' && (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenVoidModal(inv)}
+                          className="p-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition min-h-[38px] min-w-[38px] flex items-center justify-center cursor-pointer active:scale-95"
+                          title="Void / Cancel"
+                        >
+                          <Ban className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-slate-900">{inv.customerName}</span>
+                      <span className="text-[11px] font-mono text-slate-500">{inv.customerMobile}</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 truncate">
+                      {inv.items.map(it => `${it.quantity}x ${it.productName}`).join(', ')}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2 text-center text-xs font-mono">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Total</span>
+                      <span className="font-bold text-slate-900">{formatBDT(inv.grandTotal)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Paid</span>
+                      <span className="font-bold text-emerald-700">{formatBDT(inv.paidAmount)}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block font-sans">Due</span>
+                      <span className={`font-bold ${inv.dueAmount > 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                        {formatBDT(inv.dueAmount)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table (hidden sm:block) */}
+          <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
@@ -427,8 +502,9 @@ export const SalesList: React.FC<SalesListProps> = ({
                       <td className="py-3 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
+                            type="button"
                             onClick={() => onViewInvoice(inv.invoiceNo)}
-                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition"
+                            className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition cursor-pointer"
                             title="Print / View Invoice"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -436,18 +512,8 @@ export const SalesList: React.FC<SalesListProps> = ({
                           {inv.status !== 'CANCELLED' && (
                             <button
                               type="button"
-                              onClick={() => {
-                                const reason = prompt(`Reason for voiding / cancelling invoice ${inv.invoiceNo}:`);
-                                if (reason) {
-                                  const res = voidSaleInvoice(inv.invoiceNo, reason);
-                                  if (res.success) {
-                                    setActionMessage(`Invoice ${inv.invoiceNo} successfully cancelled. Stock restored.`);
-                                  } else {
-                                    alert(res.error || 'Failed to cancel invoice');
-                                  }
-                                }
-                              }}
-                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition"
+                              onClick={() => handleOpenVoidModal(inv)}
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
                               title="Void / Cancel Invoice (Restores IMEIs to stock)"
                             >
                               <Ban className="w-3.5 h-3.5" />
@@ -652,6 +718,78 @@ export const SalesList: React.FC<SalesListProps> = ({
         onClose={() => setPrintingQuotation(null)}
         onConvert={handleConvertQuote}
       />
+
+      {/* In-app Void/Cancel Invoice Modal */}
+      {voidModalInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md border border-slate-200 overflow-hidden animate-in fade-in-50">
+            <div className="p-4 bg-rose-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Ban className="w-5 h-5" />
+                <h3 className="font-bold text-sm">
+                  {language === 'bn' ? 'চালান বাতিল ও পণ্য ফেরত' : 'Void / Cancel Invoice'}
+                </h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setVoidModalInvoice(null)} 
+                className="text-white/80 hover:text-white p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteVoidInvoice} className="p-5 space-y-4 text-xs">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 space-y-1">
+                <p className="font-bold">চালান নং: {voidModalInvoice.invoiceNo}</p>
+                <p className="text-[11px] text-amber-800">
+                  গ্রাহক: {voidModalInvoice.customerName} • পরিমাণ: {formatBDT(voidModalInvoice.grandTotal)}
+                </p>
+                <p className="text-[10px] text-amber-700 font-semibold pt-1">
+                  ⚠️ এই চালান বাতিল করলে সংশ্লিষ্ট সকল ফোনের আইএমইআই (IMEI) স্বয়ংক্রিয়ভাবে পুনরায় ইনভেন্টরি স্টকে ফেরত আসবে।
+                </p>
+              </div>
+
+              {voidError && (
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-[11px]">
+                  {voidError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">
+                  {language === 'bn' ? 'বাতিলের কারণ লিখুন (আবশ্যক):' : 'Reason for Cancellation (Required):'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={language === 'bn' ? 'যেমন: ভুল এন্ট্রি, গ্রাহক ফেরত নিয়েছেন ইত্যাদি' : 'e.g. Mistake in bill, customer return...'}
+                  value={voidReasonInput}
+                  onChange={(e) => setVoidReasonInput(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setVoidModalInvoice(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition"
+                >
+                  {language === 'bn' ? 'বাতিল করুন না' : 'Close'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition shadow-xs flex items-center gap-1.5"
+                >
+                  <Ban className="w-4 h-4" />
+                  <span>{language === 'bn' ? 'চালান বাতিল নিশ্চিত করুন' : 'Confirm Void Invoice'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

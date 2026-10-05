@@ -285,7 +285,7 @@ export const ReportsManager: React.FC = () => {
                 Revenue by Brand
               </h3>
 
-              <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                 {/* Donut 1: New Phones */}
                 <div className="flex flex-col items-center text-center space-y-2">
                   <div className="relative w-28 h-28">
@@ -347,8 +347,8 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               {/* Spline Area Chart */}
-              <div className="h-44 w-full relative pt-2">
-                <svg viewBox="0 0 400 120" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <div className="h-44 w-full relative pt-2 overflow-hidden">
+                <svg viewBox="0 0 400 120" className="w-full h-full overflow-hidden" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="qGrowthGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor="#1E60D5" stopOpacity="0.25" />
@@ -389,8 +389,8 @@ export const ReportsManager: React.FC = () => {
               </div>
 
               {/* Multi-wave Spline Chart */}
-              <div className="h-44 w-full relative pt-2">
-                <svg viewBox="0 0 500 120" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <div className="h-44 w-full relative pt-2 overflow-hidden">
+                <svg viewBox="0 0 500 120" className="w-full h-full overflow-hidden" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="yearWaveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                       <stop offset="0%" stopColor="#1E60D5" stopOpacity="0.2" />
@@ -434,34 +434,36 @@ export const ReportsManager: React.FC = () => {
             <span className="text-slate-500 font-medium">Auto-aggregated from sales invoices</span>
           </div>
 
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3">Brand</th>
-                <th className="py-2.5 px-3 text-center">Units Sold</th>
-                <th className="py-2.5 px-3 text-right">Revenue (৳)</th>
-                <th className="py-2.5 px-3 text-right">Cost (COGS ৳)</th>
-                <th className="py-2.5 px-3 text-right">Gross Profit (৳)</th>
-                <th className="py-2.5 px-3 text-center">Margin %</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {brandMetrics.map(b => (
-                <tr key={b.brandId} className="hover:bg-slate-50">
-                  <td className="py-3 px-3 font-bold text-slate-900">{b.brandName}</td>
-                  <td className="py-3 px-3 text-center font-mono">{b.unitsSold} pcs</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatBDT(b.revenue)}</td>
-                  <td className="py-3 px-3 text-right font-mono text-slate-500">{formatBDT(b.cost)}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700">{formatBDT(b.profit)}</td>
-                  <td className="py-3 px-3 text-center">
-                    <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 text-[10px]">
-                      {b.marginPercent}%
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[560px]">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3">Brand</th>
+                  <th className="py-2.5 px-3 text-center">Units Sold</th>
+                  <th className="py-2.5 px-3 text-right">Revenue (৳)</th>
+                  <th className="py-2.5 px-3 text-right">Cost (COGS ৳)</th>
+                  <th className="py-2.5 px-3 text-right">Gross Profit (৳)</th>
+                  <th className="py-2.5 px-3 text-center">Margin %</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {brandMetrics.map(b => (
+                  <tr key={b.brandId} className="hover:bg-slate-50">
+                    <td className="py-3 px-3 font-bold text-slate-900">{b.brandName}</td>
+                    <td className="py-3 px-3 text-center font-mono">{b.unitsSold} pcs</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatBDT(b.revenue)}</td>
+                    <td className="py-3 px-3 text-right font-mono text-slate-500">{formatBDT(b.cost)}</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700">{formatBDT(b.profit)}</td>
+                    <td className="py-3 px-3 text-center">
+                      <span className="px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                        {b.marginPercent}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -546,30 +548,32 @@ export const ReportsManager: React.FC = () => {
             <p className="text-slate-500 mt-0.5">Calculated based on verified invoice turnover</p>
           </div>
 
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
-              <tr>
-                <th className="py-2.5 px-3">Salesman Name</th>
-                <th className="py-2.5 px-3 text-center">Invoices Completed</th>
-                <th className="py-2.5 px-3 text-right">Total Sales Turnover</th>
-                <th className="py-2.5 px-3 text-center">Commission Rule</th>
-                <th className="py-2.5 px-3 text-right">Commission Payable</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {salesmanMetrics.map((sm, idx) => (
-                <tr key={idx} className="hover:bg-slate-50">
-                  <td className="py-3 px-3 font-bold text-slate-900">{sm.name}</td>
-                  <td className="py-3 px-3 text-center font-mono">{sm.salesCount}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatBDT(sm.revenue)}</td>
-                  <td className="py-3 px-3 text-center font-mono">{sm.commissionRate}</td>
-                  <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700 text-sm">
-                    {formatBDT(sm.commissionEarned)}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[560px]">
+              <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 uppercase tracking-wider">
+                <tr>
+                  <th className="py-2.5 px-3">Salesman Name</th>
+                  <th className="py-2.5 px-3 text-center">Invoices Completed</th>
+                  <th className="py-2.5 px-3 text-right">Total Sales Turnover</th>
+                  <th className="py-2.5 px-3 text-center">Commission Rule</th>
+                  <th className="py-2.5 px-3 text-right">Commission Payable</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {salesmanMetrics.map((sm, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50">
+                    <td className="py-3 px-3 font-bold text-slate-900">{sm.name}</td>
+                    <td className="py-3 px-3 text-center font-mono">{sm.salesCount}</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-slate-900">{formatBDT(sm.revenue)}</td>
+                    <td className="py-3 px-3 text-center font-mono">{sm.commissionRate}</td>
+                    <td className="py-3 px-3 text-right font-mono font-bold text-emerald-700 text-sm">
+                      {formatBDT(sm.commissionEarned)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
