@@ -7,6 +7,7 @@ import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { ExpenseRecord } from '../../types/erp';
 import { EditExpenseModal } from './EditExpenseModal';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 interface ExpenseManagerProps {
   onOpenNewExpense?: () => void;
@@ -14,7 +15,7 @@ interface ExpenseManagerProps {
 
 export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense }) => {
   const { 
-    expenses, expenseCategories, cashAccounts, bankAccounts, 
+    businessConfig, expenses, expenseCategories, cashAccounts, bankAccounts, 
     branches, createExpense, language, currentBranchId 
   } = useERP();
 
@@ -81,13 +82,33 @@ export const ExpenseManager: React.FC<ExpenseManagerProps> = ({ onOpenNewExpense
               : 'Record utility bills, shop rent, logistics/courier, marketing, and staff salaries.'}
           </p>
         </div>
-        <button
-          onClick={() => (onOpenNewExpense ? onOpenNewExpense() : setShowAddModal(true))}
-          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{language === 'bn' ? '+ নতুন খরচ লিখুন' : '+ Record New Expense'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'দোকান ও ব্যবসা খরচ স্টেটমেন্ট' : 'Shop & Operating Expenses Report'}
+            subtitle={`Category: ${categoryFilter} • Vouchers: ${filteredExpenses.length}`}
+            summaryMetrics={[
+              { label: 'Total Expenses', value: formatBDT(filteredExpenses.reduce((acc, e) => acc + e.amount, 0)) },
+              { label: 'Expense Vouchers', value: `${filteredExpenses.length}` },
+              { label: 'Categories', value: `${expenseCategories.length}` }
+            ]}
+            shareText={`🧾 *${language === 'bn' ? 'দোকান ও পরিচালন ব্যয় স্টেটমেন্ট' : 'Operating Expenses Report'}*\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💸 *খরচ বিবরণ:*\n• মোট ভাউচার সংখ্যা: ${filteredExpenses.length} টি\n• *সর্বমোট খরচের অঙ্ক: ${formatBDT(filteredExpenses.reduce((acc, e) => acc + e.amount, 0))}*\n• ক্যাটাগরি ফিল্টার: ${categoryFilter}\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'shop_expenses_log',
+              headers: ['Voucher No', 'Date', 'Category', 'Amount (BDT)', 'Paid From Account', 'Recipient / Payee', 'Description', 'Branch'],
+              rows: filteredExpenses.map(e => [
+                e.voucherNo, e.date, e.categoryName, e.amount, e.paidFromAccountName,
+                e.recipient, e.description, e.branchName
+              ])
+            }}
+          />
+          <button
+            onClick={() => (onOpenNewExpense ? onOpenNewExpense() : setShowAddModal(true))}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{language === 'bn' ? '+ নতুন খরচ লিখুন' : '+ Record New Expense'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}

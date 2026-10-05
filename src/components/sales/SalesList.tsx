@@ -10,6 +10,7 @@ import { SalesReturnModal } from './SalesReturnModal';
 import { QuotationPrintModal } from './QuotationPrintModal';
 import { exportToCSV } from '../../utils/exportToCsv';
 import { Quotation, SaleInvoice } from '../../types/erp';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 interface SalesListProps {
   onOpenNewSale: () => void;
@@ -21,13 +22,14 @@ export const SalesList: React.FC<SalesListProps> = ({
   onViewInvoice
 }) => {
   const { 
-    sales, quotations, salesReturns, convertQuotationToSale, 
+    businessConfig, sales, quotations, salesReturns, convertQuotationToSale, 
     deleteQuotation, voidSaleInvoice, language, currentBranchId 
   } = useERP();
 
   const [activeTab, setActiveTab] = useState<'invoices' | 'quotations' | 'returns'>('invoices');
   const [searchTerm, setSearchTerm] = useState('');
   const [customerTypeFilter, setCustomerTypeFilter] = useState('ALL');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<'ALL' | 'PAID' | 'PENDING'>('ALL');
 
   // Modals
   const [isQuotationModalOpen, setIsQuotationModalOpen] = useState(false);
@@ -75,7 +77,11 @@ export const SalesList: React.FC<SalesListProps> = ({
         s.items.some(it => it.productName.toLowerCase().includes(q) || it.imeiList.some(im => im.includes(q)));
       
       const matchType = customerTypeFilter === 'ALL' || s.customerType === customerTypeFilter;
-      return matchSearch && matchType;
+      const matchPayment = 
+        paymentStatusFilter === 'ALL' ? true :
+        paymentStatusFilter === 'PAID' ? s.dueAmount === 0 :
+        s.dueAmount > 0;
+      return matchSearch && matchType && matchPayment;
     });
 
   const totalSalesAmount = filteredSales.reduce((acc, s) => acc + s.grandTotal, 0);
@@ -155,14 +161,42 @@ export const SalesList: React.FC<SalesListProps> = ({
               : 'POS invoices, wholesale quotations, and sales return restock tracking.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={handleExportCSV}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border border-slate-200 shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export CSV'}</span>
-          </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'বিক্রয় ও ইনভয়েস স্টেটমেন্ট' : 'Sales & Invoices Report'}
+            subtitle={`Tab: ${activeTab.toUpperCase()}`}
+            summaryMetrics={[
+              { label: 'Total Invoices', value: `${filteredSales.length}` },
+              { label: 'Total Sales', value: formatBDT(totalSalesAmount) },
+              { label: 'Paid Collected', value: formatBDT(totalPaidAmount) },
+              { label: 'Outstanding Due', value: formatBDT(totalDueAmount) }
+            ]}
+            shareText={`📄 *${language === 'bn' ? 'বিক্রয় ও মেমো স্টেটমেন্ট' : 'Sales & Invoices Report'}*\n🏛️ *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n📊 *${activeTab.toUpperCase()} সংক্ষেপ:*\n• মোট ভাউচার: ${activeTab === 'invoices' ? filteredSales.length : activeTab === 'quotations' ? quotations.length : salesReturns.length} টি\n• সর্বমোট বিক্রয়: ${formatBDT(totalSalesAmount)}\n• নগদ আদায়: ${formatBDT(totalPaidAmount)}\n• বকেয়া বাকি: ${formatBDT(totalDueAmount)}\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={
+              activeTab === 'invoices' ? {
+                filename: 'sales_invoices',
+                headers: ['Invoice No', 'Date', 'Customer Name', 'Mobile', 'Customer Type', 'Subtotal', 'Discount', 'Grand Total', 'Paid', 'Due', 'Payment Modes', 'Branch'],
+                rows: filteredSales.map(s => [
+                  s.invoiceNo, s.date, s.customerName, s.customerMobile, s.customerType,
+                  s.subtotal, s.discount, s.grandTotal, s.paidAmount, s.dueAmount,
+                  s.payments.map(p => `${p.method}: ${p.amount}`).join('; '), s.branchName
+                ])
+              } : activeTab === 'quotations' ? {
+                filename: 'sales_quotations',
+                headers: ['Quote No', 'Date', 'Customer Name', 'Mobile', 'Type', 'Subtotal', 'Discount', 'Grand Total', 'Valid Until', 'Status', 'Branch'],
+                rows: quotations.map(q => [
+                  q.quoteNo, q.date, q.customerName, q.customerMobile, q.customerType,
+                  q.subtotal, q.discount, q.grandTotal, q.validUntil, q.status, q.branchName
+                ])
+              } : {
+                filename: 'sales_returns',
+                headers: ['Return No', 'Date', 'Original Invoice', 'Customer Name', 'Refund Total', 'Method', 'Branch', 'Notes'],
+                rows: salesReturns.map(r => [
+                  r.returnNo, r.date, r.saleInvoiceNo, r.customerName, r.totalRefund, r.refundMethod, r.branchName, r.notes || ''
+                ])
+              }
+            }
+          />
           {activeTab === 'invoices' && (
             <button
               onClick={onOpenNewSale}
@@ -253,32 +287,83 @@ export const SalesList: React.FC<SalesListProps> = ({
             </div>
           </div>
 
-          {/* Search and Filters Bar */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 flex flex-col sm:flex-row gap-3 items-center justify-between">
-            <div className="relative w-full sm:w-80">
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search invoice #, customer, mobile, IMEI..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full text-xs pl-9 pr-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-1 focus:ring-emerald-500"
-              />
+          {/* Search and Filters Bar (Styled to match Image 6) */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(15,23,42,0.04)] space-y-4">
+            {/* Search Input with Filter Icon Button */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-4 top-3 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search order #, customer name, mobile, phone model, IMEI..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full text-xs pl-11 pr-4 py-2.5 border border-slate-200/90 rounded-2xl bg-slate-50/50 hover:bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#1E60D5]/20 focus:border-[#1E60D5] transition"
+                />
+              </div>
+
+              {/* Blue Filter Button */}
+              <button
+                type="button"
+                className="w-10 h-10 rounded-2xl bg-[#1E60D5] text-white flex items-center justify-center shadow-md shadow-blue-500/20 hover:bg-blue-700 transition shrink-0 cursor-pointer"
+                title="Filter Orders"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs text-slate-500 font-medium">Customer Type:</span>
-              <select
-                value={customerTypeFilter}
-                onChange={(e) => setCustomerTypeFilter(e.target.value)}
-                className="text-xs font-medium p-2 border border-slate-200 rounded-lg bg-slate-50"
-              >
-                <option value="ALL">All Customers</option>
-                <option value="Retail Customer">Retail Customers</option>
-                <option value="Wholesale Dealer">Wholesale Dealers</option>
-                <option value="Sub Dealer">Sub Dealers</option>
-                <option value="VIP Customer">VIP Customers</option>
-              </select>
+            {/* Filter Pills: All, Paid, Pending, Customer Types */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter('ALL')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    paymentStatusFilter === 'ALL'
+                      ? 'bg-[#1E60D5] text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  All Orders
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter('PAID')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    paymentStatusFilter === 'PAID'
+                      ? 'bg-[#00B074] text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter('PENDING')}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                    paymentStatusFilter === 'PENDING'
+                      ? 'bg-[#F59E0B] text-white shadow-xs'
+                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  Pending Due
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-bold">Party:</span>
+                <select
+                  value={customerTypeFilter}
+                  onChange={(e) => setCustomerTypeFilter(e.target.value)}
+                  className="text-xs font-bold px-3 py-1.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-700 focus:bg-white"
+                >
+                  <option value="ALL">All Accounts</option>
+                  <option value="Retail Customer">Retail Customers</option>
+                  <option value="Wholesale Dealer">Wholesale Dealers</option>
+                  <option value="Sub Dealer">Sub Dealers</option>
+                  <option value="VIP Customer">VIP Customers</option>
+                </select>
+              </div>
             </div>
           </div>
 

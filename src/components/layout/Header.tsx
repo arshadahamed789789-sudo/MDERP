@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { 
   Search, Bell, Plus, Building2, UserCheck, Smartphone, 
-  ChevronDown, Globe, Store, AlertTriangle, Menu, LogOut
+  ChevronDown, Globe, Store, AlertTriangle, Menu, LogOut,
+  Sparkles, Check, Boxes, ShieldAlert, CreditCard, ArrowRight, CheckCheck, X, Clock
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { UserRole, BusinessType } from '../../types/erp';
+import { formatBDT } from '../../utils/formatters';
 
 interface HeaderProps {
   onToggleMobileSidebar: () => void;
@@ -15,6 +17,8 @@ interface HeaderProps {
   onOpenPaySupplier: () => void;
   onOpenNewExpense: () => void;
   onOpenDailyClosing: () => void;
+  onOpenRegisterWarranty?: () => void;
+  onNavigateTab?: (tab: any) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,7 +29,9 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenReceivePayment,
   onOpenPaySupplier,
   onOpenNewExpense,
-  onOpenDailyClosing
+  onOpenDailyClosing,
+  onOpenRegisterWarranty,
+  onNavigateTab
 }) => {
   const {
     businessConfig,
@@ -40,127 +46,210 @@ export const Header: React.FC<HeaderProps> = ({
     language,
     setLanguage,
     imeis,
+    products,
     customers,
+    suppliers,
     warrantyClaims,
     logout
   } = useERP();
 
-  const [showQuickMenu, setShowQuickMenu] = useState(false);
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showBranchMenu, setShowBranchMenu] = useState(false);
   const [showBizMenu, setShowBizMenu] = useState(false);
   const [showNotificationMenu, setShowNotificationMenu] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<'ALL' | 'LOW_STOCK' | 'WARRANTY' | 'SUPPLIER'>('ALL');
+  const [dismissedNotifIds, setDismissedNotifIds] = useState<string[]>([]);
 
-  // Compute live notifications
-  const lowStockCount = 2; // e.g. iPhone 16 Pro low stock
-  const highDueCustomers = customers.filter(c => c.currentDue > 100000).length;
-  const pendingWarranties = warrantyClaims.filter(w => w.status === 'PENDING' || w.status === 'IN_REPAIR').length;
-  const totalNotifications = lowStockCount + highDueCustomers + pendingWarranties;
+  // 1. Low Stock Alerts (computed from products vs reorderLevel)
+  const lowStockAlerts = products.flatMap(p => {
+    const stock = p.variants.reduce((sum, v) => sum + (v.currentStock || 0), 0);
+    const reorder = p.reorderLevel || 3;
+    if (stock <= reorder) {
+      return [{
+        id: `stock-${p.id}`,
+        category: 'LOW_STOCK' as const,
+        title: `${p.model} (${p.brandName})`,
+        message: language === 'bn' 
+          ? `বর্তমান স্টক মাত্র ${stock} টি (রি-অর্ডার লেভেল: ${reorder})` 
+          : `Stock at ${stock} units (below reorder level of ${reorder})`,
+        badge: `${stock} in stock`,
+        badgeColor: 'bg-rose-100 text-rose-700 border-rose-200',
+        icon: Boxes,
+        actionLabel: language === 'bn' ? 'স্টক যোগ করুন' : 'Reorder / Add Stock',
+        onAction: () => {
+          setShowNotificationMenu(false);
+          onOpenNewPurchase();
+        }
+      }];
+    }
+    return [];
+  });
+
+  // 2. Pending Warranty Claims (PENDING or IN_REPAIR)
+  const pendingWarrantyAlerts = warrantyClaims
+    .filter(w => w.status === 'PENDING' || w.status === 'IN_REPAIR')
+    .map(w => ({
+      id: `warr-${w.id}`,
+      category: 'WARRANTY' as const,
+      title: `Claim #${w.claimNo} - ${w.customerName}`,
+      message: `${w.problemDescription} (IMEI: ${w.imei})`,
+      badge: w.status === 'PENDING' ? (language === 'bn' ? 'অনুমোদন বাকি' : 'Pending Claim') : (language === 'bn' ? 'সার্ভিস চলছে' : 'In Repair'),
+      badgeColor: 'bg-purple-100 text-purple-700 border-purple-200',
+      icon: ShieldAlert,
+      actionLabel: language === 'bn' ? 'ওয়ারেন্টি খতিয়ান' : 'Inspect Ticket',
+      onAction: () => {
+        setShowNotificationMenu(false);
+        if (onNavigateTab) onNavigateTab('warranty');
+      }
+    }));
+
+  // 3. Upcoming Supplier Payment Deadlines & Payables
+  const supplierPaymentAlerts = suppliers
+    .filter(s => s.currentPayable > 0)
+    .map(s => ({
+      id: `supp-${s.id}`,
+      category: 'SUPPLIER' as const,
+      title: `${s.company} (${s.name})`,
+      message: language === 'bn'
+        ? `বকেয়া মহাজন পাওনা: ${formatBDT(s.currentPayable)}`
+        : `Outstanding payable: ${formatBDT(s.currentPayable)}`,
+      badge: formatBDT(s.currentPayable),
+      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+      icon: CreditCard,
+      actionLabel: language === 'bn' ? 'পেমেন্ট করুন' : 'Pay Supplier',
+      onAction: () => {
+        setShowNotificationMenu(false);
+        onOpenPaySupplier();
+      }
+    }));
+
+  const allAlerts = [...lowStockAlerts, ...pendingWarrantyAlerts, ...supplierPaymentAlerts]
+    .filter(item => !dismissedNotifIds.includes(item.id));
+
+  const filteredAlerts = allAlerts.filter(item => {
+    if (notifFilter === 'ALL') return true;
+    return item.category === notifFilter;
+  });
+
+  const totalNotifications = allAlerts.length;
 
   return (
-    <header className="h-16 bg-slate-900 text-white border-b border-slate-800 px-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
-      {/* Brand & Tagline */}
-      <div className="flex items-center gap-2 sm:gap-3">
+    <header className="h-16 bg-white/85 backdrop-blur-xl text-slate-900 border-b border-slate-200/70 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-30 shadow-[0_2px_20px_rgba(15,23,42,0.03)] select-none">
+      {/* Brand & Breadcrumb */}
+      <div className="flex items-center gap-3">
         {/* Mobile Hamburger Drawer Toggle */}
         <button
           type="button"
           onClick={onToggleMobileSidebar}
-          className="md:hidden p-2 -ml-1 text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition flex items-center justify-center"
+          className="md:hidden p-2 -ml-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition flex items-center justify-center"
           title="Open Menu"
           aria-label="Toggle navigation drawer"
         >
-          <Menu className="w-5 h-5 text-emerald-400" />
+          <Menu className="w-5 h-5 text-[#00B074]" />
         </button>
 
-        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-950/40 text-white font-black text-lg sm:text-xl tracking-tighter shrink-0">
-          D
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-sm sm:text-base tracking-wide text-white">MOBILE D-ERP</span>
-            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded border border-emerald-500/30">
-              BD v2.6
-            </span>
+        {/* DEALERFLOW ERP Logo */}
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-[#00B074] to-[#00D2B4] flex items-center justify-center shadow-md shadow-emerald-500/20 text-white font-black text-xl tracking-tighter shrink-0">
+            D
           </div>
-          <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
-            {language === 'bn' ? 'মোবাইল ব্যবসার সম্পূর্ণ ডিজিটাল ব্যবস্থাপনা' : 'Specialized Mobile Retail & Wholesale ERP'}
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-black text-sm sm:text-base tracking-tight text-slate-900">
+                DEALERFLOW ERP
+              </span>
+              <span className="text-[10px] bg-[#00B074]/15 text-[#00B074] font-black px-2 py-0.5 rounded-full border border-[#00B074]/20 hidden sm:inline-block">
+                Pro
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium hidden lg:block">
+              {language === 'bn' ? 'মোবাইল শোরুম ও ডিলারশিপ ম্যানেজমেন্ট' : 'Mobile Showroom & Dealer Management'}
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Global Search Bar (Trigger) */}
       <div className="flex-1 max-w-md mx-4 hidden md:block">
         <button
+          type="button"
           onClick={onOpenSearch}
-          className="w-full h-9 px-3 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-slate-600 rounded-xl flex items-center justify-between text-xs text-slate-400 transition"
+          className="w-full h-10 px-4 bg-slate-100/80 hover:bg-slate-100 border border-slate-200/80 hover:border-slate-300 rounded-full flex items-center justify-between text-xs text-slate-500 transition shadow-inner-xs cursor-pointer"
         >
-          <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{language === 'bn' ? 'IMEI / কাস্টমার / মেমো সার্চ করুন...' : 'Search IMEI, Customer, Invoice # (Ctrl+K)...'}</span>
+          <div className="flex items-center gap-2.5">
+            <Search className="w-4 h-4 text-slate-400" />
+            <span className="font-medium">
+              {language === 'bn' ? 'আইএমইআই, বিক্রয় চালান, কাস্টমার খুঁজুন...' : 'Search IMEI, Customer, Invoice # (Ctrl+K)...'}
+            </span>
           </div>
-          <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-700/70 text-slate-300 rounded border border-slate-600 font-mono">
+          <kbd className="px-2 py-0.5 text-[10px] bg-white text-slate-500 rounded-full border border-slate-200 font-mono shadow-2xs">
             ⌘K
           </kbd>
         </button>
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-2 sm:gap-2.5">
         {/* Mobile Search Button */}
         <button
+          type="button"
           onClick={onOpenSearch}
-          className="md:hidden p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg"
+          className="md:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
           title="Search"
         >
           <Search className="w-4 h-4" />
         </button>
 
-        {/* Business Type Selector */}
+        {/* Business Type Selector Pill */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowBizMenu(!showBizMenu)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-semibold rounded-lg text-emerald-400 border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100/90 hover:bg-slate-200/80 text-xs font-bold rounded-full text-slate-700 border border-slate-200/80 transition"
             title="Switch Business Mode (Retail / Wholesale / Hybrid)"
           >
-            <Store className="w-3.5 h-3.5" />
+            <Store className="w-3.5 h-3.5 text-[#00B074]" />
             <span className="hidden sm:inline">
-              {businessType === 'RETAIL' ? '🛒 Retail' : businessType === 'WHOLESALE' ? '🏢 Wholesale' : '⚡ Retail+Wholesale'}
+              {businessType === 'RETAIL' ? 'Retail' : businessType === 'WHOLESALE' ? 'Wholesale' : 'Retail+Wholesale'}
             </span>
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
           {showBizMenu && (
-            <div className="absolute right-0 mt-2 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-40 text-xs animate-in fade-in-50">
+              <div className="px-4 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 Business Mode (ব্যবসার ধরন)
               </div>
               <button
+                type="button"
                 onClick={() => { setBusinessType('RETAIL_WHOLESALE'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'RETAIL_WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col ${businessType === 'RETAIL_WHOLESALE' ? 'text-[#00B074] font-bold bg-[#00B074]/5' : 'text-slate-700'}`}
               >
                 <div className="flex items-center justify-between">
                   <span>⚡ Retail + Wholesale (Both)</span>
-                  {businessType === 'RETAIL_WHOLESALE' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                  {businessType === 'RETAIL_WHOLESALE' && <span className="text-[10px] bg-emerald-100 text-[#00B074] px-1.5 py-0.5 rounded font-bold">Active</span>}
                 </div>
                 <span className="text-[10px] text-slate-400">Full ERP with counter POS and dealer cartons</span>
               </button>
               <button
+                type="button"
                 onClick={() => { setBusinessType('WHOLESALE'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'WHOLESALE' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col ${businessType === 'WHOLESALE' ? 'text-[#00B074] font-bold bg-[#00B074]/5' : 'text-slate-700'}`}
               >
                 <div className="flex items-center justify-between">
                   <span>🏢 Wholesale Dealer Mode</span>
-                  {businessType === 'WHOLESALE' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                  {businessType === 'WHOLESALE' && <span className="text-[10px] bg-emerald-100 text-[#00B074] px-1.5 py-0.5 rounded font-bold">Active</span>}
                 </div>
                 <span className="text-[10px] text-slate-400">Dealers, credit limits, quotations & master cartons</span>
               </button>
               <button
+                type="button"
                 onClick={() => { setBusinessType('RETAIL'); setShowBizMenu(false); }}
-                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${businessType === 'RETAIL' ? 'text-emerald-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col ${businessType === 'RETAIL' ? 'text-[#00B074] font-bold bg-[#00B074]/5' : 'text-slate-700'}`}
               >
                 <div className="flex items-center justify-between">
                   <span>🛒 Retail Shop Mode</span>
-                  {businessType === 'RETAIL' && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1 rounded">Active</span>}
+                  {businessType === 'RETAIL' && <span className="text-[10px] bg-emerald-100 text-[#00B074] px-1.5 py-0.5 rounded font-bold">Active</span>}
                 </div>
                 <span className="text-[10px] text-slate-400">Single phone sales, counter cash & warranties</span>
               </button>
@@ -168,14 +257,15 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Operating Branch Selector */}
+        {/* Operating Branch Selector Pill */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowBranchMenu(!showBranchMenu)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-medium rounded-lg text-slate-200 border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100/90 hover:bg-slate-200/80 text-xs font-bold rounded-full text-slate-700 border border-slate-200/80 transition"
             title="Filter by Operating Branch"
           >
-            <Building2 className="w-3.5 h-3.5 text-blue-400" />
+            <Building2 className="w-3.5 h-3.5 text-[#1E60D5]" />
             <span className="max-w-[120px] truncate hidden md:inline">
               {currentBranchId === 'all' ? 'All Branches' : branches.find(b => b.id === currentBranchId)?.name.split(' ')[0]}
             </span>
@@ -183,26 +273,28 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {showBranchMenu && (
-            <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-40 text-xs animate-in fade-in-50">
+              <div className="px-4 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 Operating Branch (দোকানের শাখা)
               </div>
               <button
+                type="button"
                 onClick={() => { setCurrentBranchId('all'); setShowBranchMenu(false); }}
-                className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex items-center justify-between ${currentBranchId === 'all' ? 'text-blue-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex items-center justify-between ${currentBranchId === 'all' ? 'text-[#1E60D5] font-bold bg-blue-50' : 'text-slate-700'}`}
               >
                 <span>🏛️ All Branches (Consolidated)</span>
-                {currentBranchId === 'all' && <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1 rounded">Active</span>}
+                {currentBranchId === 'all' && <span className="text-[10px] bg-blue-100 text-[#1E60D5] px-1.5 py-0.5 rounded font-bold">Active</span>}
               </button>
               {branches.map(b => (
                 <button
                   key={b.id}
+                  type="button"
                   onClick={() => { setCurrentBranchId(b.id); setShowBranchMenu(false); }}
-                  className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${currentBranchId === b.id ? 'text-blue-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                  className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col ${currentBranchId === b.id ? 'text-[#1E60D5] font-bold bg-blue-50' : 'text-slate-700'}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">📍 {b.name}</span>
-                    {currentBranchId === b.id && <span className="text-[10px] bg-blue-500/20 text-blue-300 px-1 rounded">Active</span>}
+                    {currentBranchId === b.id && <span className="text-[10px] bg-blue-100 text-[#1E60D5] px-1.5 py-0.5 rounded font-bold">Active</span>}
                   </div>
                   <span className="text-[10px] text-slate-400">{b.type} • {b.location.split(',')[0]}</span>
                 </button>
@@ -211,32 +303,34 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Switch Role (RBAC Simulator) */}
+        {/* Switch Role (RBAC Simulator Pill) */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowRoleMenu(!showRoleMenu)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700/90 text-xs font-medium rounded-lg text-amber-400 border border-slate-700 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100/80 text-xs font-bold rounded-full text-amber-800 border border-amber-200/80 transition"
             title="Switch User Role (RBAC Simulator)"
           >
-            <UserCheck className="w-3.5 h-3.5 text-amber-400" />
+            <UserCheck className="w-3.5 h-3.5 text-amber-600" />
             <span className="hidden xl:inline">{currentUser.role}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-amber-600/70" />
           </button>
 
           {showRoleMenu && (
-            <div className="absolute right-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-700">
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-40 text-xs animate-in fade-in-50">
+              <div className="px-4 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                 Switch Role (RBAC Simulator)
               </div>
               {users.map(u => (
                 <button
                   key={u.id}
+                  type="button"
                   onClick={() => { setCurrentUser(u); setShowRoleMenu(false); }}
-                  className={`w-full text-left px-3 py-2 hover:bg-slate-700 flex flex-col ${currentUser.id === u.id ? 'text-amber-400 font-bold bg-slate-700/40' : 'text-slate-200'}`}
+                  className={`w-full text-left px-4 py-2 hover:bg-slate-50 flex flex-col ${currentUser.id === u.id ? 'text-amber-800 font-bold bg-amber-50/60' : 'text-slate-700'}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">{u.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700 text-amber-300 font-mono">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-mono">
                       {u.role}
                     </span>
                   </div>
@@ -248,16 +342,16 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 </button>
               ))}
-              <div className="p-1 border-t border-slate-700/80 mt-1">
+              <div className="p-2 border-t border-slate-100 mt-1">
                 <button
                   type="button"
                   onClick={() => {
                     setShowRoleMenu(false);
                     logout();
                   }}
-                  className="w-full text-left px-3 py-2 hover:bg-rose-500/20 text-rose-300 rounded-lg flex items-center gap-2 font-bold text-xs transition"
+                  className="w-full text-left px-3 py-1.5 hover:bg-rose-50 text-rose-600 rounded-xl flex items-center gap-2 font-bold text-xs transition"
                 >
-                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <LogOut className="w-3.5 h-3.5" />
                   <span>{language === 'bn' ? 'সিস্টেম থেকে লগআউট' : 'Sign Out / Logout'}</span>
                 </button>
               </div>
@@ -267,140 +361,200 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Language Toggle (Bangla / English) */}
         <button
+          type="button"
           onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-          className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-xs font-bold rounded-lg border border-slate-700 text-slate-300 flex items-center gap-1 transition"
+          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-xs font-bold rounded-full border border-slate-200/80 text-slate-700 flex items-center gap-1 transition"
           title="Toggle Language"
         >
-          <Globe className="w-3.5 h-3.5 text-teal-400" />
+          <Globe className="w-3.5 h-3.5 text-slate-500" />
           <span>{language === 'en' ? 'বাং' : 'EN'}</span>
         </button>
 
-        {/* Direct Link to Sign In / Sign Up Screen */}
-        <button
-          onClick={() => {
-            logout();
-          }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600/90 hover:bg-rose-600 text-xs font-bold rounded-lg text-white shadow-xs transition active:scale-98"
-          title={language === 'bn' ? 'লগআউট করে সাইন ইন পেজে যান' : 'Logout & Sign In'}
-        >
-          <LogOut className="w-3.5 h-3.5 text-white" />
-          <span>{language === 'bn' ? 'লগআউট' : 'Logout'}</span>
-        </button>
-
-        {/* Notification Bell */}
+        {/* Notification Bell with live alerts */}
         <div className="relative">
           <button
+            type="button"
             onClick={() => setShowNotificationMenu(!showNotificationMenu)}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg relative"
-            title="Notifications"
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-full relative transition active:scale-95 cursor-pointer"
+            title={language === 'bn' ? 'নোটিফিকেশন ও অ্যালার্ট' : 'Notifications & Alerts'}
+            aria-label="Toggle notifications"
           >
             <Bell className="w-4 h-4" />
             {totalNotifications > 0 && (
-              <span className="absolute top-1 right-1 w-4 h-4 bg-rose-500 text-white rounded-full text-[10px] font-black flex items-center justify-center animate-pulse">
+              <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-rose-500 text-white font-mono font-bold text-[9px] rounded-full flex items-center justify-center border-2 border-white shadow-xs animate-pulse">
                 {totalNotifications}
               </span>
             )}
           </button>
 
           {showNotificationMenu && (
-            <div className="absolute right-0 mt-2 w-72 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-2 z-40 text-xs animate-in fade-in-50">
-              <div className="px-3 py-1 font-bold text-slate-300 border-b border-slate-700 flex items-center justify-between">
-                <span>Business Alerts</span>
-                <span className="text-[10px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded">
-                  {totalNotifications} New
-                </span>
+            <>
+              {/* Invisible backdrop to dismiss */}
+              <div 
+                className="fixed inset-0 z-30" 
+                onClick={() => setShowNotificationMenu(false)}
+              />
+
+              <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200/90 rounded-3xl shadow-2xl py-3.5 z-40 text-xs animate-in fade-in-50 space-y-3">
+                {/* Popover Header */}
+                <div className="px-4 pb-2.5 border-b border-slate-100 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-sm text-slate-900 tracking-tight">
+                      {language === 'bn' ? 'সিস্টেম অ্যালার্ট ও নোটিফিকেশন' : 'Alerts & Notifications'}
+                    </span>
+                    {totalNotifications > 0 && (
+                      <span className="px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full font-bold text-[10px]">
+                        {totalNotifications}
+                      </span>
+                    )}
+                  </div>
+                  {totalNotifications > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDismissedNotifIds(allAlerts.map(a => a.id))}
+                      className="text-[11px] font-bold text-slate-400 hover:text-slate-700 flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <CheckCheck className="w-3.5 h-3.5" />
+                      <span>{language === 'bn' ? 'সব ক্লিয়ার' : 'Clear All'}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="px-4 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => setNotifFilter('ALL')}
+                    className={`px-2.5 py-1 rounded-full font-bold transition whitespace-nowrap cursor-pointer ${
+                      notifFilter === 'ALL' 
+                        ? 'bg-slate-900 text-white' 
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    All ({allAlerts.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifFilter('LOW_STOCK')}
+                    className={`px-2.5 py-1 rounded-full font-bold transition whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                      notifFilter === 'LOW_STOCK' 
+                        ? 'bg-rose-600 text-white' 
+                        : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                    }`}
+                  >
+                    <Boxes className="w-3 h-3" />
+                    <span>Low Stock ({lowStockAlerts.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifFilter('WARRANTY')}
+                    className={`px-2.5 py-1 rounded-full font-bold transition whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                      notifFilter === 'WARRANTY' 
+                        ? 'bg-purple-600 text-white' 
+                        : 'bg-purple-50 text-purple-700 hover:bg-purple-100'
+                    }`}
+                  >
+                    <ShieldAlert className="w-3 h-3" />
+                    <span>Warranty ({pendingWarrantyAlerts.length})</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNotifFilter('SUPPLIER')}
+                    className={`px-2.5 py-1 rounded-full font-bold transition whitespace-nowrap flex items-center gap-1 cursor-pointer ${
+                      notifFilter === 'SUPPLIER' 
+                        ? 'bg-amber-600 text-white' 
+                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    <CreditCard className="w-3 h-3" />
+                    <span>Payables ({supplierPaymentAlerts.length})</span>
+                  </button>
+                </div>
+
+                {/* Notifications List */}
+                <div className="px-3 space-y-2 max-h-80 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-200">
+                  {filteredAlerts.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 space-y-1.5">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                        <CheckCheck className="w-5 h-5 text-emerald-500" />
+                      </div>
+                      <p className="font-bold text-xs text-slate-700">
+                        {language === 'bn' ? 'কোনো নতুন অ্যালার্ট নেই!' : 'No new notifications'}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {language === 'bn' ? 'স্টক, ওয়ারেন্টি ও মহাজন দেনা নিয়ন্ত্রণে রয়েছে।' : 'Stock, warranties, and supplier accounts are up to date.'}
+                      </p>
+                    </div>
+                  ) : (
+                    filteredAlerts.map(alert => {
+                      const Icon = alert.icon;
+                      return (
+                        <div 
+                          key={alert.id}
+                          className="p-3 bg-slate-50/80 hover:bg-slate-100/80 rounded-2xl border border-slate-200/70 transition space-y-2 group"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-start gap-2.5">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                                alert.category === 'LOW_STOCK' ? 'bg-rose-100 text-rose-600' :
+                                alert.category === 'WARRANTY' ? 'bg-purple-100 text-purple-600' :
+                                'bg-amber-100 text-amber-700'
+                              }`}>
+                                <Icon className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <h4 className="font-black text-xs text-slate-900 tracking-tight leading-snug">
+                                  {alert.title}
+                                </h4>
+                                <p className="text-[11px] text-slate-500 mt-0.5">
+                                  {alert.message}
+                                </p>
+                              </div>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold font-mono shrink-0 border ${alert.badgeColor}`}>
+                              {alert.badge}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-slate-200/50">
+                            <button
+                              type="button"
+                              onClick={() => setDismissedNotifIds(prev => [...prev, alert.id])}
+                              className="text-[10px] text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
+                            >
+                              {language === 'bn' ? 'বাদ দিন' : 'Dismiss'}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={alert.onAction}
+                              className="px-2.5 py-1 bg-white hover:bg-slate-900 hover:text-white border border-slate-200 rounded-xl text-[11px] font-bold text-slate-800 transition flex items-center gap-1 shadow-2xs active:scale-95 cursor-pointer"
+                            >
+                              <span>{alert.actionLabel}</span>
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
-              <div className="divide-y divide-slate-700/60 max-h-64 overflow-y-auto">
-                <div className="p-2.5 hover:bg-slate-700/40">
-                  <p className="font-semibold text-rose-300 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
-                    Customer Due Reminder
-                  </p>
-                  <p className="text-[11px] text-slate-300 mt-0.5">
-                    Rahman Telecom has ৳1,45,000 due (over 7 days).
-                  </p>
-                </div>
-                <div className="p-2.5 hover:bg-slate-700/40">
-                  <p className="font-semibold text-amber-300 flex items-center gap-1">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                    Low Stock Alert
-                  </p>
-                  <p className="text-[11px] text-slate-300 mt-0.5">
-                    iPhone 16 Pro Natural Titanium has only 2 units left.
-                  </p>
-                </div>
-                <div className="p-2.5 hover:bg-slate-700/40">
-                  <p className="font-semibold text-blue-300 flex items-center gap-1">
-                    <Smartphone className="w-3.5 h-3.5 text-blue-400" />
-                    Pending Warranty Claim
-                  </p>
-                  <p className="text-[11px] text-slate-300 mt-0.5">
-                    Samsung S24 FE (IMEI: 864209061001242) is in repair.
-                  </p>
-                </div>
-              </div>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Quick Action Button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowQuickMenu(!showQuickMenu)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold rounded-lg shadow-md transition"
+        {/* User Profile Avatar Circle */}
+        <div className="relative pl-1">
+          <div 
+            onClick={() => setShowRoleMenu(!showRoleMenu)}
+            className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-orange-500 p-0.5 cursor-pointer shadow-xs hover:scale-105 transition"
+            title={`${currentUser.name} (${currentUser.role})`}
           >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">{language === 'bn' ? 'নতুন হিসাব' : 'Quick Action'}</span>
-            <ChevronDown className="w-3 h-3" />
-          </button>
-
-          {showQuickMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 py-1.5 z-40 text-xs animate-in fade-in-50">
-              <button
-                onClick={() => { onOpenNewSale(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-emerald-50 font-semibold text-emerald-800 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                + {language === 'bn' ? 'নতুন মেমো / বিক্রি (Sale POS)' : 'New Sale / POS Invoice'}
-              </button>
-              <button
-                onClick={() => { onOpenNewPurchase(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-blue-50 font-semibold text-blue-800 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                + {language === 'bn' ? 'নতুন মাল ক্রয় (Purchase)' : 'New Purchase (With Landed Cost)'}
-              </button>
-              <button
-                onClick={() => { onOpenReceivePayment(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-violet-50 font-medium text-slate-700 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-violet-500"></span>
-                {language === 'bn' ? 'কাস্টমার বাকি আদায় (Collect Due)' : 'Receive Customer Due'}
-              </button>
-              <button
-                onClick={() => { onOpenPaySupplier(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-amber-50 font-medium text-slate-700 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                {language === 'bn' ? 'মহাজন/সাপ্লায়ার দেনা পরিশোধ' : 'Pay Supplier'}
-              </button>
-              <button
-                onClick={() => { onOpenNewExpense(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-rose-50 font-medium text-slate-700 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                {language === 'bn' ? 'দোকানের খরচ লিখুন (Expense)' : 'Add Expense'}
-              </button>
-              <div className="border-t border-slate-100 my-1"></div>
-              <button
-                onClick={() => { onOpenDailyClosing(); setShowQuickMenu(false); }}
-                className="w-full text-left px-3.5 py-2 hover:bg-slate-100 font-semibold text-slate-900 flex items-center gap-2"
-              >
-                <span className="w-2 h-2 rounded-full bg-slate-700"></span>
-                {language === 'bn' ? 'দিনের হিসাব ক্লোজিং (Daily Closing)' : 'Perform Daily Closing'}
-              </button>
+            <div className="w-full h-full rounded-full bg-slate-900 text-white font-black text-xs flex items-center justify-center">
+              {currentUser.name.charAt(0)}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </header>

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { 
   X, Printer, Check, Ban, AlertCircle, Truck, Building, 
-  DollarSign, FileText, Smartphone, ArrowDownRight, Tag
+  DollarSign, FileText, Smartphone, ArrowDownRight, Tag, MessageSquare, Copy
 } from 'lucide-react';
 import { PurchaseInvoice } from '../../types/erp';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
+import { shareViaWhatsApp, copyToClipboard } from '../../utils/shareUtils';
 
 interface PurchaseBillDetailsModalProps {
   isOpen: boolean;
@@ -20,7 +21,7 @@ export const PurchaseBillDetailsModal: React.FC<PurchaseBillDetailsModalProps> =
   purchase,
   onVoidSuccess
 }) => {
-  const { suppliers, bankAccounts, cashAccounts, paySupplier, voidPurchaseBill, language } = useERP();
+  const { businessConfig, suppliers, bankAccounts, cashAccounts, paySupplier, voidPurchaseBill, language } = useERP();
 
   const [showPayForm, setShowPayForm] = useState(false);
   const [payAmount, setPayAmount] = useState(0);
@@ -28,6 +29,7 @@ export const PurchaseBillDetailsModal: React.FC<PurchaseBillDetailsModalProps> =
   const [payMethod, setPayMethod] = useState<'Bank' | 'Cash' | 'bKash' | 'Nagad'>('Bank');
   const [payTrxId, setPayTrxId] = useState('');
   const [payNotes, setPayNotes] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const [confirmVoid, setConfirmVoid] = useState(false);
   const [voidReason, setVoidReason] = useState('');
@@ -71,6 +73,26 @@ export const PurchaseBillDetailsModal: React.FC<PurchaseBillDetailsModalProps> =
     window.print();
   };
 
+  const billShareText = `📦 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - ক্রয় চালান (Purchase Bill)*
+📄 চালান নং: *${purchase.invoiceNo}* ${purchase.supplierInvoiceNo ? `(সাপ্লায়ার মেমো: ${purchase.supplierInvoiceNo})` : ''}
+📅 তারিখ: ${formatDate(purchase.date)}
+🏢 মহাজন / সাপ্লায়ার: *${purchase.supplierName}*
+
+📋 *ক্রয়কৃত পণ্যের বিবরণ:*
+${purchase.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeis?.length ? `\n   IMEI (${it.imeis.length}): ${it.imeis.join(', ')}` : ''}`).join('\n')}
+
+💵 চালান মোট মূল্য: ${formatBDT(purchase.grandTotal)}
+✅ পরিশোধিত: ${formatBDT(purchase.paidAmount)}
+${purchase.dueAmount > 0 ? `⚠️ *মহাজন বাকি পাওনা: ${formatBDT(purchase.dueAmount)}*` : '🎉 *সম্পূর্ণ পরিশোধিত (Full Paid)*'}`;
+
+  const handleCopyText = async () => {
+    const success = await copyToClipboard(billShareText);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in-50">
       <div 
@@ -102,15 +124,33 @@ export const PurchaseBillDetailsModal: React.FC<PurchaseBillDetailsModalProps> =
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => shareViaWhatsApp(billShareText, supplier?.mobile)}
+              className="px-2.5 py-1 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="WhatsApp এ ক্রয় চালান শেয়ার করুন"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyText}
+              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              title="ক্রয় চালান কপি করুন"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{copied ? 'কপি হয়েছে' : 'কপি'}</span>
+            </button>
+            <button
+              type="button"
               onClick={handlePrint}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
               title="Print Goods Receipt"
             >
               <Printer className="w-4 h-4" />
             </button>
             <button 
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

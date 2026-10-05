@@ -1,9 +1,21 @@
 @import "tailwindcss";
 
 @layer base {
+  :root {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  }
+
   body {
-    @apply antialiased text-slate-800 bg-slate-100;
+    @apply antialiased text-slate-800 bg-[#F4F7FB];
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Force tabular numerals for all data figures */
+  .font-mono, td.tabular-nums, .tabular-nums {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
   }
 }
 

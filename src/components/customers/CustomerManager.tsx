@@ -10,24 +10,34 @@ import { AgingDueDashboard } from './AgingDueDashboard';
 import { DueReminderModal } from './DueReminderModal';
 import { EditCustomerModal } from './EditCustomerModal';
 import { exportToCSV } from '../../utils/exportToCsv';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 interface CustomerManagerProps {
   onOpenReceiveDue?: (customerId: string) => void;
+  initialCustomerId?: string;
 }
 
 export const CustomerManager: React.FC<CustomerManagerProps> = ({
-  onOpenReceiveDue
+  onOpenReceiveDue,
+  initialCustomerId
 }) => {
   const { 
-    customers, customerLedgers, receiveCustomerPayment, 
+    businessConfig, customers, customerLedgers, receiveCustomerPayment, 
     addCustomer, deleteCustomer, cashAccounts, bankAccounts, language 
   } = useERP();
 
-  const [viewTab, setViewTab] = useState<'ledger' | 'aging'>('ledger');
+  const [viewTab, setViewTab] = useState<'dealers' | 'ledger' | 'aging'>('dealers');
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(customers[0]?.id || null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(initialCustomerId || customers[0]?.id || null);
   const [deleteCustomerTarget, setDeleteCustomerTarget] = useState<{ id: string; name: string; due: number; error?: string } | null>(null);
+
+  React.useEffect(() => {
+    if (initialCustomerId) {
+      setSelectedCustomerId(initialCustomerId);
+      setViewTab('ledger');
+    }
+  }, [initialCustomerId]);
 
   // Receive Payment Modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -145,32 +155,29 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
               : 'Wholesale dealer credit management, individual customer ledgers, and due collection.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={() => {
-              const headers = ['Party Name', 'Business / Shop', 'Mobile', 'Category', 'Price Level', 'Credit Limit (BDT)', 'Current Due (BDT)', 'Total Purchases (BDT)', 'Total Paid (BDT)', 'Address'];
-              const rows = filteredCustomers.map(c => [
-                c.name,
-                c.businessName || '',
-                c.mobile,
-                c.customerType,
-                c.priceLevel,
-                c.creditLimit,
-                c.currentDue,
-                c.totalPurchased,
-                c.totalPaid,
-                c.address || ''
-              ]);
-              exportToCSV('customers_and_dealers_due_list', headers, rows);
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'কাস্টমার ও ডিলার বকেয়া খতিয়ান' : 'Customer & Dealer Dues Ledger'}
+            subtitle={`Total Parties: ${filteredCustomers.length}`}
+            summaryMetrics={[
+              { label: 'Total Due (Receivables)', value: formatBDT(totalDueReceivables) },
+              { label: 'Total Parties', value: `${totalCustomersCount}` },
+              { label: 'Wholesale Dealers', value: `${dealersCount}` }
+            ]}
+            shareText={`👥 *${language === 'bn' ? 'কাস্টমার ও ডিলার বকেয়া খতিয়ান' : 'Customer & Dealer Dues Ledger'}*\n🏛️ *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *বকেয়া সংক্ষেপ:*\n• মোট কাস্টমার সংখ্যা: ${totalCustomersCount} জন\n• বকেয়া পার্টি সংখ্যা: ${customers.filter(c => c.currentDue > 0).length} জন\n• সর্বমোট বকেয়া পাওনা: ${formatBDT(totalDueReceivables)}\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'customers_and_dealers_due_list',
+              headers: ['Party Name', 'Business / Shop', 'Mobile', 'Category', 'Price Level', 'Credit Limit (BDT)', 'Current Due (BDT)', 'Total Purchases (BDT)', 'Total Paid (BDT)', 'Address'],
+              rows: filteredCustomers.map(c => [
+                c.name, c.businessName || '', c.mobile, c.customerType,
+                c.priceLevel, c.creditLimit, c.currentDue, c.totalPurchased,
+                c.totalPaid, c.address || ''
+              ])
             }}
-            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 border border-slate-300 shadow-xs"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{language === 'bn' ? 'এক্সপোর্ট CSV' : 'Export Due List'}</span>
-          </button>
+          />
           <button
             onClick={() => setShowAddCustomerModal(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>{language === 'bn' ? '+ নতুন কাস্টমার/ডিলার' : '+ Add Customer / Dealer'}</span>
@@ -200,20 +207,32 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
       </div>
 
       {/* Navigation Subtabs */}
-      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold">
+      <div className="flex border-b border-slate-200 gap-4 text-xs font-bold overflow-x-auto whitespace-nowrap pb-0.5">
         <button
+          type="button"
+          onClick={() => setViewTab('dealers')}
+          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 cursor-pointer ${
+            viewTab === 'dealers' ? 'border-[#00B074] text-[#00B074] font-black' : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Building className="w-4 h-4" />
+          <span>Dealer Management & Performance (Grid)</span>
+        </button>
+        <button
+          type="button"
           onClick={() => setViewTab('ledger')}
-          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 ${
-            viewTab === 'ledger' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 cursor-pointer ${
+            viewTab === 'ledger' ? 'border-[#00B074] text-[#00B074] font-black' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Users className="w-4 h-4" />
           <span>Customer Profiles & Detailed Ledgers</span>
         </button>
         <button
+          type="button"
           onClick={() => setViewTab('aging')}
-          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 ${
-            viewTab === 'aging' ? 'border-emerald-600 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+          className={`pb-2.5 transition border-b-2 flex items-center gap-1.5 cursor-pointer ${
+            viewTab === 'aging' ? 'border-[#00B074] text-[#00B074] font-black' : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -221,7 +240,104 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
         </button>
       </div>
 
-      {viewTab === 'ledger' ? (
+      {viewTab === 'dealers' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-black text-slate-900 tracking-tight">
+              Dealer Management & Performance
+            </h2>
+            <span className="text-xs text-slate-500">
+              Active Dealers & Accounts: <strong>{filteredCustomers.length}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {filteredCustomers.map((cust, idx) => {
+              const colorSchemes = [
+                { bg: 'bg-[#00B074]', scoreBg: 'bg-[#00B074]/90' },
+                { bg: 'bg-[#1E60D5]', scoreBg: 'bg-[#1E60D5]/90' },
+                { bg: 'bg-[#F59E0B]', scoreBg: 'bg-[#F59E0B]/90' },
+                { bg: 'bg-[#BE123C]', scoreBg: 'bg-[#BE123C]/90' },
+              ];
+              const scheme = colorSchemes[idx % colorSchemes.length];
+              const score = 300 + ((idx * 63 + 47) % 190);
+              const targetPercent = Math.min(100, Math.max(65, 95 - (idx * 4)));
+
+              return (
+                <div key={cust.id} className="bg-white rounded-3xl border border-slate-100 shadow-[0_8px_30px_rgba(15,23,42,0.04)] overflow-hidden flex flex-col justify-between hover:shadow-[0_12px_40px_rgba(15,23,42,0.08)] transition-all duration-300">
+                  {/* Top Colored Header (Image 7) */}
+                  <div className={`${scheme.bg} p-5 text-white flex flex-col justify-between relative`}>
+                    <div className="flex items-center justify-between">
+                      <div className="w-12 h-12 rounded-full bg-white/20 p-0.5 border-2 border-white/60 shadow-xs">
+                        <div className="w-full h-full rounded-full bg-slate-900 text-white font-black text-sm flex items-center justify-center">
+                          {cust.name.charAt(0)}
+                        </div>
+                      </div>
+                      <div className="w-11 h-11 rounded-full border-2 border-white/80 bg-white/20 backdrop-blur-xs flex items-center justify-center font-black font-mono text-sm text-white shadow-xs">
+                        {score}
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <h3 className="font-black text-sm text-white tracking-tight truncate">{cust.name}</h3>
+                      <p className="text-[11px] text-white/85 truncate font-medium">{cust.businessName || cust.customerType}</p>
+                      <div className="flex items-center gap-1 text-amber-300 text-xs mt-1">
+                        {'★'.repeat(5)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="p-5 space-y-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-bold">Credit Limit:</span>
+                        <span className="font-mono font-black text-slate-900">{formatBDT(cust.creditLimit || 200000)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 font-bold">Current Due:</span>
+                        <span className={`font-mono font-black ${cust.currentDue > 0 ? 'text-amber-600' : 'text-[#00B074]'}`}>
+                          {formatBDT(cust.currentDue)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Target Tracking Progress */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-slate-600">Target Tracking:</span>
+                        <span className="text-[#00B074]">{targetPercent}% (On Track)</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full bg-[#00B074] transition-all duration-500" 
+                          style={{ width: `${targetPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <div className="pt-1 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCustomerId(cust.id);
+                          setViewTab('ledger');
+                        }}
+                        className="w-full py-2.5 px-3 border border-slate-200 hover:border-[#1E60D5] hover:text-[#1E60D5] rounded-xl text-xs font-bold text-slate-700 transition text-center cursor-pointer active:scale-95"
+                      >
+                        Contact / View Ledger
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {viewTab === 'ledger' && (
         /* Main 2-Column Split: Customer List & Customer Ledger Statement */
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column: List of Customers */}
@@ -384,26 +500,47 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
                       {formatBDT(selectedCustomer.currentDue)}
                     </span>
                   </div>
-                  {selectedCustomer.currentDue > 0 && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => {
-                          setReminderCustomer(selectedCustomer);
-                          setShowReminderModal(true);
-                        }}
-                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{language === 'bn' ? 'তাগাদা SMS/WhatsApp' : 'Send Reminder'}</span>
-                      </button>
-                      <button
-                        onClick={() => handleOpenPayment(selectedCustomer)}
-                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
-                      >
-                        Receive Payment
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <ShareExportButtons
+                      compact
+                      title={`${selectedCustomer.name} - ${language === 'bn' ? 'খতিয়ান স্টেটমেন্ট' : 'Customer Ledger Statement'}`}
+                      subtitle={`Mobile: ${selectedCustomer.mobile} • ${selectedCustomer.customerType}`}
+                      summaryMetrics={[
+                        { label: 'Current Due', value: formatBDT(selectedCustomer.currentDue) },
+                        { label: 'Total Purchases', value: formatBDT(selectedCustomer.totalPurchased) },
+                        { label: 'Total Paid', value: formatBDT(selectedCustomer.totalPaid) },
+                        { label: 'Credit Limit', value: formatBDT(selectedCustomer.creditLimit) }
+                      ]}
+                      shareText={`📜 *${language === 'bn' ? 'গ্রাহক খতিয়ান হিসাব স্টেটমেন্ট' : 'Customer Account Statement'}*\n👤 *${selectedCustomer.name}* ${selectedCustomer.businessName ? `(${selectedCustomer.businessName})` : ''}\n📱 মোবাইল: ${selectedCustomer.mobile}\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *হিসাব বিবরণ:*\n• সর্বমোট ক্রয়: ${formatBDT(selectedCustomer.totalPurchased)}\n• সর্বমোট জমা: ${formatBDT(selectedCustomer.totalPaid)}\n• *বর্তমান বকেয়া পাওনা: ${formatBDT(selectedCustomer.currentDue)}*\n\nGenerated via DEALERFLOW Hub.`}
+                      csvData={{
+                        filename: `ledger_${selectedCustomer.name.replace(/\s+/g, '_')}`,
+                        headers: ['Date', 'Reference / Invoice', 'Description', 'Debit (+)', 'Credit (-)', 'Balance (BDT)'],
+                        rows: activeLedger.map(l => [
+                          l.date, l.referenceNo, l.description, l.debit, l.credit, l.balance
+                        ])
+                      }}
+                    />
+                    {selectedCustomer.currentDue > 0 && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setReminderCustomer(selectedCustomer);
+                            setShowReminderModal(true);
+                          }}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>{language === 'bn' ? 'তাগাদা SMS' : 'Reminder'}</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenPayment(selectedCustomer)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        >
+                          {language === 'bn' ? 'পেমেন্ট গ্রহণ' : 'Receive Payment'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -485,7 +622,9 @@ export const CustomerManager: React.FC<CustomerManagerProps> = ({
           )}
         </div>
       </div>
-      ) : (
+      )}
+
+      {viewTab === 'aging' && (
         <AgingDueDashboard onCollectDue={handleOpenPayment} />
       )}
 

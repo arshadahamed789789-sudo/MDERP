@@ -8,10 +8,11 @@ import { formatBDT } from '../../utils/formatters';
 import { StockAdjustmentModal } from './StockAdjustmentModal';
 import { EditProductModal } from './EditProductModal';
 import { Product } from '../../types/erp';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 export const InventoryManager: React.FC = () => {
   const { 
-    products, brands, categories, branches, imeis, 
+    businessConfig, products, brands, categories, branches, imeis, 
     addProduct, createStockTransfer, language, currentBranchId 
   } = useERP();
 
@@ -134,36 +135,59 @@ export const InventoryManager: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-            {language === 'bn' ? 'স্টক ব্যবস্থাপনা ও পণ্য তালিকা' : 'Inventory & Product Catalog'}
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            {language === 'bn' ? 'ইনভেন্টরি ও স্টক ব্যবস্থাপনা' : 'Inventory Management'}
           </h1>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 mt-0.5">
             {language === 'bn' 
-              ? 'মডেল, ভ্যারিয়েন্ট, পাইকারি ও খুচরা মূল্য স্তর এবং ব্রাঞ্চ ট্রান্সফার' 
-              : 'Multi-level pricing (Retail, Wholesale, Dealer), RAM/ROM variants, and warehouse transfers.'}
+              ? 'মোবাইল ফোন ও গ্যাজেট স্টক, আইএমইআই স্ট্যাটাস ও গুদামজাতকরণ' 
+              : 'Device stock counts, multi-tiered wholesale pricing, and branch transfers.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap self-start sm:self-auto">
+          <ShareExportButtons
+            title={language === 'bn' ? 'ইনভেন্টরি স্টক ও মূল্যায়ন রিপোর্ট' : 'Inventory Stock & Valuation Report'}
+            subtitle={`Catalog: ${products.length} Models • ${totalStockUnits} Units`}
+            summaryMetrics={[
+              { label: 'Total Units in Stock', value: `${totalStockUnits} pcs` },
+              { label: 'Catalog Models', value: `${products.length}` },
+              { label: 'Low Stock Alert', value: `${lowStockProducts.length} items` }
+            ]}
+            shareText={`📦 *${language === 'bn' ? 'ইনভেন্টরি স্টক ও মালপত্র রিপোর্ট' : 'Inventory Stock Report'}*\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n📱 *স্টক বিবরণ:*\n• মোট হ্যান্ডসেট ও গ্যাজেট মডেল: ${products.length} টি\n• দোকানে বর্তমান মোট ইউনিট: ${totalStockUnits} টি\n• রি-অর্ডারের জন্য লো-স্টক আইটেম: ${lowStockProducts.length} টি\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'inventory_catalog_stock',
+              headers: ['Model', 'Brand', 'Category', 'Color', 'SKU', 'Current Stock', 'Purchase Cost (BDT)', 'Retail Price (BDT)', 'Wholesale Price (BDT)', 'Warranty Months'],
+              rows: filteredProducts.flatMap(p => 
+                p.variants.map(v => [
+                  p.model, p.brandName, p.category, v.color, v.sku,
+                  v.currentStock, v.purchasePrice, v.retailPrice, v.wholesalePrice, p.warrantyMonths
+                ])
+              )
+            }}
+          />
           <button
+            type="button"
             onClick={() => setShowAdjustmentModal(true)}
-            className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
           >
             <SlidersHorizontal className="w-4 h-4 text-amber-600" />
             <span>{language === 'bn' ? 'স্টক সমন্বয়' : 'Stock Adjustment'}</span>
           </button>
           <button
+            type="button"
             onClick={() => setShowTransferModal(true)}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5"
+            className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-2xl text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
           >
-            <ArrowRightLeft className="w-4 h-4 text-emerald-400" />
+            <ArrowRightLeft className="w-4 h-4 text-[#00B074]" />
             <span>{language === 'bn' ? 'স্টক ট্রান্সফার' : 'Stock Transfer'}</span>
           </button>
           <button
+            type="button"
             onClick={() => setShowAddProductModal(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            className="px-5 py-2.5 bg-[#1E60D5] hover:bg-blue-700 text-white rounded-2xl text-xs font-black transition flex items-center gap-2 shadow-md shadow-blue-500/25 active:scale-95 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
-            <span>{language === 'bn' ? '+ নতুন প্রোডাক্ট' : '+ Add Product'}</span>
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>{language === 'bn' ? '+ নতুন স্টক যোগ' : 'Add Stock'}</span>
           </button>
         </div>
       </div>

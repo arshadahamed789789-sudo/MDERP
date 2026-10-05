@@ -7,16 +7,27 @@ import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { Supplier } from '../../types/erp';
 import { EditSupplierModal } from './EditSupplierModal';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
-export const SupplierManager: React.FC = () => {
+interface SupplierManagerProps {
+  initialSupplierId?: string;
+}
+
+export const SupplierManager: React.FC<SupplierManagerProps> = ({ initialSupplierId }) => {
   const { 
-    suppliers, supplierLedgers, paySupplier, addSupplier, deleteSupplier,
+    businessConfig, suppliers, supplierLedgers, paySupplier, addSupplier, deleteSupplier,
     cashAccounts, bankAccounts, language 
   } = useERP();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(suppliers[0]?.id || null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(initialSupplierId || suppliers[0]?.id || null);
   const [deleteSupplierTarget, setDeleteSupplierTarget] = useState<{ id: string; name: string; payable: number; error?: string } | null>(null);
+
+  React.useEffect(() => {
+    if (initialSupplierId) {
+      setSelectedSupplierId(initialSupplierId);
+    }
+  }, [initialSupplierId]);
 
   // Pay Supplier Modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -120,13 +131,33 @@ export const SupplierManager: React.FC = () => {
               : 'Distributor payable tracking, purchasing records, and supplier ledger reconciliation.'}
           </p>
         </div>
-        <button
-          onClick={() => setShowAddSupplierModal(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-start sm:self-auto shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          <span>{language === 'bn' ? '+ নতুন সাপ্লায়ার' : '+ Add Supplier / Importer'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'মহাজন ও সাপ্লায়ার দেনা রিপোর্ট' : 'Suppliers & Accounts Payable Statement'}
+            subtitle={`Total Suppliers: ${suppliers.length}`}
+            summaryMetrics={[
+              { label: 'Total Payable (দেনা)', value: formatBDT(totalPayables) },
+              { label: 'Registered Distributors', value: `${suppliers.length}` },
+              { label: 'Total Procured', value: formatBDT(suppliers.reduce((acc, s) => acc + s.totalPurchased, 0)) }
+            ]}
+            shareText={`🏛️ *${language === 'bn' ? 'মহাজন ও সাপ্লায়ার দেনা খতিয়ান' : 'Suppliers Accounts Payable'}*\n🏢 শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *দেনা ও ক্রয় হিসাব:*\n• মোট সাপ্লায়ার/মহাজন: ${suppliers.length} টি প্রতিষ্ঠান\n• বকেয়া দেনা সহ মহাজন: ${suppliers.filter(s => s.currentPayable > 0).length} টি\n• *সর্বমোট বকেয়া দেনা: ${formatBDT(totalPayables)}*\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'suppliers_payable_list',
+              headers: ['Supplier Company', 'Contact Person', 'Mobile', 'Address', 'Bank Account Info', 'Total Purchases (BDT)', 'Total Paid (BDT)', 'Current Payable Due (BDT)'],
+              rows: filteredSuppliers.map(s => [
+                s.company, s.contactPerson, s.mobile, s.address,
+                s.bankInfo || '', s.totalPurchased, s.totalPaid, s.currentPayable
+              ])
+            }}
+          />
+          <button
+            onClick={() => setShowAddSupplierModal(true)}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>{language === 'bn' ? '+ নতুন সাপ্লায়ার' : '+ Add Supplier / Importer'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -286,19 +317,37 @@ export const SupplierManager: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <div className="text-right">
                     <span className="text-[10px] text-slate-400 uppercase font-bold block">Current Payable (দেনা)</span>
                     <span className={`text-xl font-black font-mono ${selectedSupplier.currentPayable > 0 ? 'text-amber-600' : 'text-slate-800'}`}>
                       {formatBDT(selectedSupplier.currentPayable)}
                     </span>
                   </div>
+                  <ShareExportButtons
+                    compact
+                    title={`${selectedSupplier.company} - ${language === 'bn' ? 'মহাজন খতিয়ান স্টেটমেন্ট' : 'Supplier Ledger Statement'}`}
+                    subtitle={`Contact: ${selectedSupplier.contactPerson} • ${selectedSupplier.mobile}`}
+                    summaryMetrics={[
+                      { label: 'Current Payable', value: formatBDT(selectedSupplier.currentPayable) },
+                      { label: 'Total Procured', value: formatBDT(selectedSupplier.totalPurchased) },
+                      { label: 'Total Paid', value: formatBDT(selectedSupplier.totalPaid) }
+                    ]}
+                    shareText={`📜 *${language === 'bn' ? 'মহাজন ও সাপ্লায়ার খতিয়ান হিসাব স্টেটমেন্ট' : 'Supplier Account Statement'}*\n🏢 *${selectedSupplier.company}* (Contact: ${selectedSupplier.contactPerson})\n📱 মোবাইল: ${selectedSupplier.mobile}\n🏛️ শোরুম: *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *হিসাব বিবরণ:*\n• সর্বমোট ক্রয় চালান: ${formatBDT(selectedSupplier.totalPurchased)}\n• পরিশোধিত নগদ/ব্যাংক: ${formatBDT(selectedSupplier.totalPaid)}\n• *বর্তমান বকেয়া পাওনা: ${formatBDT(selectedSupplier.currentPayable)}*\n\nGenerated via DEALERFLOW Hub.`}
+                    csvData={{
+                      filename: `supplier_ledger_${selectedSupplier.company.replace(/\s+/g, '_')}`,
+                      headers: ['Date', 'Reference / Bill', 'Transaction Details', 'Debit / Paid (-)', 'Credit / Bill (+)', 'Payable Balance'],
+                      rows: activeLedger.map(l => [
+                        l.date, l.referenceNo, l.description, l.debit, l.credit, l.balance
+                      ])
+                    }}
+                  />
                   {selectedSupplier.currentPayable > 0 && (
                     <button
                       onClick={() => handleOpenPay(selectedSupplier)}
-                      className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs"
+                      className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                     >
-                      Make Payment
+                      {language === 'bn' ? 'টাকা পরিশোধ' : 'Make Payment'}
                     </button>
                   )}
                 </div>

@@ -7,10 +7,11 @@ import { useERP } from '../../services/erpStore';
 import { formatDate } from '../../utils/formatters';
 import { WarrantyClaim } from '../../types/erp';
 import { EditWarrantyModal } from './EditWarrantyModal';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 export const WarrantyManager: React.FC = () => {
   const { 
-    warrantyClaims, imeis, createWarrantyClaim, updateWarrantyStatus, language 
+    businessConfig, warrantyClaims, imeis, createWarrantyClaim, updateWarrantyStatus, language 
   } = useERP();
 
   const [searchImeiQuery, setSearchImeiQuery] = useState('');
@@ -57,16 +58,39 @@ export const WarrantyManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-          {language === 'bn' ? 'ওয়ারেন্টি চেক ও সার্ভিস ক্লেইম' : 'IMEI Warranty Check & Service Claims'}
-        </h1>
-        <p className="text-xs text-slate-500">
-          {language === 'bn' 
-            ? 'আইএমইআই দিয়ে ওয়ারেন্টি যাচাই এবং রিপ্লেসমেন্ট ও সার্ভিসিং ট্র্যাকিং' 
-            : 'Instant IMEI warranty validity verification, customer dispute resolution, and RMA service tracking.'}
-        </p>
+      {/* Header with Share & Export */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            {language === 'bn' ? 'ওয়ারেন্টি চেক ও সার্ভিস ক্লেইম' : 'IMEI Warranty Check & Service Claims'}
+          </h1>
+          <p className="text-xs text-slate-500">
+            {language === 'bn' 
+              ? 'আইএমইআই দিয়ে ওয়ারেন্টি যাচাই এবং রিপ্লেসমেন্ট ও সার্ভিসিং ট্র্যাকিং' 
+              : 'Instant IMEI warranty validity verification, customer dispute resolution, and RMA service tracking.'}
+          </p>
+        </div>
+        <div className="self-start sm:self-auto">
+          <ShareExportButtons
+            title={language === 'bn' ? 'ওয়ারেন্টি সার্ভিস ও RMA ক্লেইম খতিয়ান' : 'Warranty Claims & Service Report'}
+            subtitle={`Total Claims: ${warrantyClaims.length}`}
+            summaryMetrics={[
+              { label: 'Total Claims', value: `${warrantyClaims.length}` },
+              { label: 'Pending Diagnostics', value: `${warrantyClaims.filter(w => w.status === 'PENDING').length}` },
+              { label: 'In Repair', value: `${warrantyClaims.filter(w => w.status === 'IN_REPAIR').length}` },
+              { label: 'Delivered', value: `${warrantyClaims.filter(w => w.status === 'DELIVERED').length}` }
+            ]}
+            shareText={`🛡️ *${language === 'bn' ? 'ওয়ারেন্টি ও সার্ভিসিং ক্লেইম রিপোর্ট' : 'Warranty & RMA Service Report'}*\n🏛️ *${businessConfig?.shopName || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n📱 *সার্ভিস স্ট্যাটাস:*\n• মোট ওয়ারেন্টি ক্লেইম: ${warrantyClaims.length} টি\n• অপেক্ষমান (Pending): ${warrantyClaims.filter(w => w.status === 'PENDING').length} টি\n• মেরামত চলছে (In Repair): ${warrantyClaims.filter(w => w.status === 'IN_REPAIR').length} টি\n• হস্তান্তর সম্পন্ন (Delivered): ${warrantyClaims.filter(w => w.status === 'DELIVERED').length} টি\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'warranty_rma_claims',
+              headers: ['Claim No', 'Date', 'IMEI', 'Product Model', 'Customer Name', 'Phone', 'Problem Reported', 'Status', 'Resolution Notes'],
+              rows: warrantyClaims.map(w => [
+                w.claimNo, w.date, w.imei, w.productName, w.customerName,
+                w.customerPhone, w.problemDescription, w.status, w.resolutionNotes || ''
+              ])
+            }}
+          />
+        </div>
       </div>
 
       {/* IMEI Warranty Lookup & Claim Generator Card */}

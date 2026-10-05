@@ -5,6 +5,7 @@ import { formatBDT, formatDate } from '../../utils/formatters';
 import { PurchaseInvoice } from '../../types/erp';
 import { PurchaseReturnModal } from './PurchaseReturnModal';
 import { PurchaseBillDetailsModal } from './PurchaseBillDetailsModal';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 interface PurchaseListProps {
   onOpenNewPurchase: () => void;
@@ -13,7 +14,7 @@ interface PurchaseListProps {
 export const PurchaseList: React.FC<PurchaseListProps> = ({
   onOpenNewPurchase
 }) => {
-  const { purchases, purchaseReturns, language, currentBranchId } = useERP();
+  const { businessConfig, purchases, purchaseReturns, language, currentBranchId } = useERP();
   const [activeTab, setActiveTab] = useState<'bills' | 'returns'>('bills');
   const [searchTerm, setSearchTerm] = useState('');
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
@@ -62,7 +63,36 @@ export const PurchaseList: React.FC<PurchaseListProps> = ({
               : 'Inventory procurement, landed cost breakdown, and supplier return debit notes.'}
           </p>
         </div>
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'ক্রয় চালান ও মহাজন হিসাব' : 'Procurement & Supplier Purchases'}
+            subtitle={`Tab: ${activeTab.toUpperCase()}`}
+            summaryMetrics={[
+              { label: 'Total Purchases', value: formatBDT(totalPurchases) },
+              { label: 'Paid to Suppliers', value: formatBDT(totalPaid) },
+              { label: 'Payable Due', value: formatBDT(totalDue) },
+              { label: 'Returns Value', value: formatBDT(totalReturnsValue) }
+            ]}
+            shareText={`📦 *${language === 'bn' ? 'ক্রয় চালান ও মহাজন খতিয়ান রিপোর্ট' : 'Procurement & Supplier Statement'}*\n🏛️ *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *ক্রয় হিসাব সংক্ষেপ:*\n• মোট ক্রয় চালান: ${filteredPurchases.length} টি\n• সর্বমোট ক্রয় মূল্য: ${formatBDT(totalPurchases)}\n• পরিশোধিত নগদ/ব্যাংক: ${formatBDT(totalPaid)}\n• মহাজন বকেয়া দেনা: ${formatBDT(totalDue)}\n• সাপ্লায়ার রিটার্ন: ${formatBDT(totalReturnsValue)}\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={
+              activeTab === 'bills' ? {
+                filename: 'purchase_bills',
+                headers: ['Bill No', 'Date', 'Supplier Name', 'Supplier Inv No', 'Subtotal', 'Landed Cost', 'Grand Total', 'Paid', 'Due', 'Branch'],
+                rows: filteredPurchases.map(p => [
+                  p.invoiceNo, p.date, p.supplierName, p.supplierInvoiceNo,
+                  p.subtotal, p.totalLandedCost || 0, p.grandTotal,
+                  p.paidAmount, p.dueAmount, p.branchName
+                ])
+              } : {
+                filename: 'purchase_returns',
+                headers: ['Return No', 'Date', 'Supplier', 'Original Purchase Inv', 'Credit Total', 'Branch', 'Reason'],
+                rows: filteredReturns.map(r => [
+                  r.returnNo, r.date, r.supplierName, r.purchaseInvoiceNo,
+                  r.totalCredit, r.branchName, r.notes || r.items[0]?.reason || 'Returned to supplier'
+                ])
+              }
+            }
+          />
           <button
             onClick={() => setIsReturnModalOpen(true)}
             className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"

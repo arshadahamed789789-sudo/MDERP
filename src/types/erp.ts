@@ -540,3 +540,29 @@ export interface StockAdjustment {
   notes?: string;
 }
 
+export interface BackupScheduleConfig {
+  enabled: boolean;
+  frequency: 'daily' | 'every_3_days' | 'weekly';
+  format: 'JSON' | 'CSV' | 'BOTH';
+  autoDownload: boolean;
+  keepLocalSnapshots: boolean;
+  lastBackupDate?: string;
+  nextBackupDate?: string;
+}
+
+export interface BackupSnapshot {
+  id: string;
+  timestamp: string;
+  trigger: 'MANUAL' | 'SCHEDULED';
+  format: 'JSON' | 'CSV' | 'BOTH';
+  sizeKb: number;
+  summary: {
+    productsCount: number;
+    imeisCount: number;
+    salesCount: number;
+    customersCount: number;
+    suppliersCount: number;
+    expensesCount: number;
+  };
+  jsonData: string;
+}

@@ -5,10 +5,11 @@ import {
 } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 export const AccountingManager: React.FC = () => {
   const { 
-    chartOfAccounts, journalEntries, sales, expenses, 
+    businessConfig, chartOfAccounts, journalEntries, sales, expenses, 
     customers, suppliers, cashAccounts, bankAccounts, imeis, products, language 
   } = useERP();
 
@@ -58,16 +59,38 @@ export const AccountingManager: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-          {language === 'bn' ? 'ডাবল-এন্ট্রি একাউন্টিং ও লাভ-ক্ষতি' : 'Double-Entry Accounting & Financial Statements'}
-        </h1>
-        <p className="text-xs text-slate-500">
-          {language === 'bn' 
-            ? 'প্রতিটি কেনা-বেচার স্বয়ংক্রিয় জাবেদা (Journal), খতিয়ান, প্রফিট অ্যান্ড লস ও ব্যালেন্স শীট' 
-            : 'Automated balanced journal entries, Trial Balance, Profit & Loss, and Balance Sheet for audit & tax.'}
-        </p>
+      {/* Header with Share & Export */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            {language === 'bn' ? 'ডাবল-এন্ট্রি একাউন্টিং ও লাভ-ক্ষতি' : 'Double-Entry Accounting & Financial Statements'}
+          </h1>
+          <p className="text-xs text-slate-500">
+            {language === 'bn' 
+              ? 'প্রতিটি কেনা-বেচার স্বয়ংক্রিয় জাবেদা (Journal), খতিয়ান, প্রফিট অ্যান্ড লস ও ব্যালেন্স শীট' 
+              : 'Automated balanced journal entries, Trial Balance, Profit & Loss, and Balance Sheet for audit & tax.'}
+          </p>
+        </div>
+        <div className="self-start sm:self-auto">
+          <ShareExportButtons
+            title={language === 'bn' ? 'আর্থিক বিবরণী ও লাভ-ক্ষতি স্টেটমেন্ট' : 'Financial Statement & Audit Report'}
+            subtitle={`View: ${activeTab.toUpperCase()}`}
+            summaryMetrics={[
+              { label: 'Total Revenue', value: formatBDT(totalRevenue) },
+              { label: 'Gross Profit', value: formatBDT(grossProfit) },
+              { label: 'Operating Expenses', value: formatBDT(totalOperatingExpenses) },
+              { label: 'Net Profit', value: formatBDT(netProfit) }
+            ]}
+            shareText={`📊 *${language === 'bn' ? 'আর্থিক হিসাব ও লাভ-ক্ষতি বিবরণী' : 'Financial Statements & P&L Statement'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *আর্থিক সারসংক্ষেপ:*\n• মোট বিক্রয় আয় (Revenue): ${formatBDT(totalRevenue)}\n• বিক্রীত পণ্যের ব্যয় (COGS): ${formatBDT(totalCOGS)}\n• মোট গ্রস প্রফিট: ${formatBDT(grossProfit)} (${grossMarginPercent}%)\n• মোট পরিচালন ব্যয় (OPEX): ${formatBDT(totalOperatingExpenses)}\n• *নিট নিট মুনাফা (Net Profit): ${formatBDT(netProfit)} (${netMarginPercent}%)*\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: `financial_statement_${activeTab}`,
+              headers: ['Account Code', 'Account Name', 'Classification', 'Normal Balance', 'Current Balance (BDT)'],
+              rows: chartOfAccounts.map(a => [
+                a.code, a.name, a.type, a.normalBalance, a.balance
+              ])
+            }}
+          />
+        </div>
       </div>
 
       {/* Quick Navigation Tabs */}

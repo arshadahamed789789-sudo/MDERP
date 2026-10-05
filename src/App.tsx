@@ -3,7 +3,7 @@ import { ERPProvider, useERP } from './services/erpStore';
 import { Header } from './components/layout/Header';
 import { Sidebar, ActiveTab } from './components/layout/Sidebar';
 import { GlobalSearchModal } from './components/layout/GlobalSearchModal';
-import { MobileBottomNav } from './components/layout/MobileBottomNav';
+import { FloatingDockNav } from './components/layout/FloatingDockNav';
 import { DashboardOverview } from './components/dashboard/DashboardOverview';
 import { SalesList } from './components/sales/SalesList';
 import { NewSaleModal } from './components/sales/NewSaleModal';
@@ -18,6 +18,8 @@ import { CashBankManager } from './components/cashbank/CashBankManager';
 import { ExpenseManager } from './components/expenses/ExpenseManager';
 import { NewExpenseModal } from './components/expenses/NewExpenseModal';
 import { WarrantyManager } from './components/warranty/WarrantyManager';
+import { RegisterWarrantyModal } from './components/warranty/RegisterWarrantyModal';
+import { QuickLedgerEntryModal } from './components/accounting/QuickLedgerEntryModal';
 import { AccountingManager } from './components/accounting/AccountingManager';
 import { ReportsManager } from './components/reports/ReportsManager';
 import { AuditLogManager } from './components/audit/AuditLogManager';
@@ -46,6 +48,9 @@ const ERPAppContent: React.FC = () => {
   const [isNewSaleOpen, setIsNewSaleOpen] = useState(false);
   const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
   const [isNewExpenseOpen, setIsNewExpenseOpen] = useState(false);
+  const [isRegisterWarrantyOpen, setIsRegisterWarrantyOpen] = useState(false);
+  const [isQuickLedgerOpen, setIsQuickLedgerOpen] = useState(false);
+  const [quickLedgerType, setQuickLedgerType] = useState<'CUSTOMER_PAYMENT' | 'SUPPLIER_PAYMENT'>('CUSTOMER_PAYMENT');
   const [viewingInvoiceNo, setViewingInvoiceNo] = useState<string | null>(null);
   const [selectedImeiSearch, setSelectedImeiSearch] = useState<string>('');
 
@@ -77,17 +82,19 @@ const ERPAppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-[#F4F7FB] text-slate-800 flex flex-col font-sans selection:bg-[#00B074] selection:text-white">
       {/* Top Header */}
       <Header
         onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenNewSale={() => setIsNewSaleOpen(true)}
         onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
-        onOpenReceivePayment={() => setActiveTab('customers')}
-        onOpenPaySupplier={() => setActiveTab('suppliers')}
+        onOpenReceivePayment={() => { setQuickLedgerType('CUSTOMER_PAYMENT'); setIsQuickLedgerOpen(true); }}
+        onOpenPaySupplier={() => { setQuickLedgerType('SUPPLIER_PAYMENT'); setIsQuickLedgerOpen(true); }}
         onOpenNewExpense={() => setIsNewExpenseOpen(true)}
         onOpenDailyClosing={() => setActiveTab('cashbank')}
+        onOpenRegisterWarranty={() => setIsRegisterWarrantyOpen(true)}
+        onNavigateTab={(tab) => setActiveTab(tab)}
       />
 
       {/* Main Workspace with Sidebar */}
@@ -100,8 +107,8 @@ const ERPAppContent: React.FC = () => {
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
-        {/* Content View Area */}
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 pb-24 md:pb-8 space-y-4">
+        {/* Content View Area (Smoothly Scrollable Independent from Fixed Sidebar) */}
+        <main className="flex-1 min-w-0 overflow-y-auto h-[calc(100vh-4rem)] p-3 sm:p-6 lg:p-8 pb-28 md:pb-12 space-y-5">
           {/* RBAC Role Simulator Banner (if not Super Admin) */}
           {currentUser.role !== 'Super Admin' && (
             <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-900 animate-in fade-in-50">
@@ -163,10 +170,12 @@ const ERPAppContent: React.FC = () => {
             <DashboardOverview
               onOpenNewSale={() => setIsNewSaleOpen(true)}
               onOpenNewPurchase={() => setIsNewPurchaseOpen(true)}
-              onOpenReceivePayment={() => setActiveTab('customers')}
-              onOpenPaySupplier={() => setActiveTab('suppliers')}
+              onOpenReceivePayment={() => { setQuickLedgerType('CUSTOMER_PAYMENT'); setIsQuickLedgerOpen(true); }}
+              onOpenPaySupplier={() => { setQuickLedgerType('SUPPLIER_PAYMENT'); setIsQuickLedgerOpen(true); }}
               onOpenNewExpense={() => setIsNewExpenseOpen(true)}
               onOpenDailyClosing={() => setActiveTab('cashbank')}
+              onOpenRegisterWarranty={() => setIsRegisterWarrantyOpen(true)}
+              onOpenCreateLedgerEntry={(type) => { setQuickLedgerType(type || 'CUSTOMER_PAYMENT'); setIsQuickLedgerOpen(true); }}
               onViewInvoice={(invNo) => setViewingInvoiceNo(invNo)}
               onNavigateTab={(tab) => setActiveTab(tab)}
             />
@@ -215,13 +224,6 @@ const ERPAppContent: React.FC = () => {
         </main>
       </div>
 
-      {/* Mobile Sticky Bottom Navigation Bar */}
-      <MobileBottomNav
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        onOpenMenu={() => setIsMobileSidebarOpen(true)}
-        onOpenNewSale={() => setIsNewSaleOpen(true)}
-      />
 
       {/* Global Modals */}
       <GlobalSearchModal
@@ -266,6 +268,27 @@ const ERPAppContent: React.FC = () => {
       <InvoicePrintModal
         invoiceNo={viewingInvoiceNo}
         onClose={() => setViewingInvoiceNo(null)}
+      />
+
+      {/* Quick Action Modals */}
+      <RegisterWarrantyModal
+        isOpen={isRegisterWarrantyOpen}
+        onClose={() => setIsRegisterWarrantyOpen(false)}
+        onSuccess={(claimNo) => {
+          setActiveTab('warranty');
+        }}
+      />
+
+      <QuickLedgerEntryModal
+        isOpen={isQuickLedgerOpen}
+        onClose={() => setIsQuickLedgerOpen(false)}
+        defaultType={quickLedgerType}
+      />
+
+      {/* Floating iOS Bottom Dock Navigation (from Mockup Design) */}
+      <FloatingDockNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
       />
     </div>
   );

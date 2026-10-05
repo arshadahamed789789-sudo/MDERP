@@ -6,10 +6,11 @@ import {
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate, formatDateTime } from '../../utils/formatters';
 import { AccountModal } from './AccountModal';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 export const CashBankManager: React.FC = () => {
   const { 
-    cashAccounts, bankAccounts, accountTransactions, dailyClosings,
+    businessConfig, cashAccounts, bankAccounts, accountTransactions, dailyClosings,
     performDailyClosing, transferFunds, branches, currentBranchId, language 
   } = useERP();
 
@@ -113,10 +114,28 @@ export const CashBankManager: React.FC = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+          <ShareExportButtons
+            title={language === 'bn' ? 'ক্যাশ, ব্যাংক ও দৈনিক ক্লোজিং রিপোর্ট' : 'Cash, Bank & Treasury Report'}
+            subtitle={`Scope: ${currentBranchId === 'all' ? 'All Accounts' : 'Active Branch'}`}
+            summaryMetrics={[
+              { label: 'Total Liquid Treasury', value: formatBDT(totalLiquidAssets) },
+              { label: 'Counter Cash Drawers', value: formatBDT(totalCashInDrawers) },
+              { label: 'Bank & MFS Accounts', value: formatBDT(totalBankMfsFunds) }
+            ]}
+            shareText={`💵 *${language === 'bn' ? 'ক্যাশ, ব্যাংক ও ট্রেজারি রিপোর্ট' : 'Treasury & Cash Balance Report'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n💰 *ব্যালেন্স সংক্ষেপ:*\n• মোট নগদ ক্যাশ ড্রয়ার: ${formatBDT(totalCashInDrawers)}\n• ব্যাংক ও MFS (বিকাশ/নগদ): ${formatBDT(totalBankMfsFunds)}\n• *সর্বমোট নগদ ও তারল্য তহবিল: ${formatBDT(totalLiquidAssets)}*\n• রেজিস্টার্ড একাউন্ট: ${cashAccounts.length + bankAccounts.length} টি\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'cash_bank_treasury_summary',
+              headers: ['Account Name', 'Type', 'Bank / Provider', 'Account Number', 'Current Balance (BDT)', 'Branch'],
+              rows: [
+                ...cashAccounts.map(c => [c.name, 'Counter Cash', 'Physical Box', 'N/A', c.balance, branches.find(b => b.id === c.branchId)?.name || 'Main Branch']),
+                ...bankAccounts.map(b => [b.accountName, b.type, b.bankName, b.accountNumber, b.balance, b.branchName])
+              ]
+            }}
+          />
           <button
             type="button"
             onClick={handleOpenTransfer}
-            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm cursor-pointer"
           >
             <ArrowRightLeft className="w-4 h-4 text-blue-200" />
             <span>{language === 'bn' ? 'ইন্টার-একাউন্ট ট্রান্সফার' : 'Transfer Funds'}</span>

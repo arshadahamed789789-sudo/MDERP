@@ -6,8 +6,9 @@ import {
   CustomerLedgerEntry, SupplierLedgerEntry, AuditLog, DailyClosingRecord,
   BusinessConfig, WarrantyClaim, PaymentRecord, StockTransfer,
   Quotation, SalesReturn, PurchaseReturn, StockAdjustment, SalesReturnItem, PurchaseReturnItem,
-  RegisterUserData
+  RegisterUserData, BackupScheduleConfig, BackupSnapshot
 } from '../types/erp';
+import { exportDatabaseToCsvZip, exportConsolidatedDatabaseCsv } from '../utils/backupExportHelpers';
 import { 
   initialBusinessConfig, initialBranches, initialUsers, initialBrands,
   initialCategories, initialProducts, initialImeis, initialCustomers,
@@ -281,6 +282,26 @@ interface ERPContextType {
   }) => { success: boolean; adjustmentNo?: string; error?: string };
 
   exportAllBusinessData: () => void;
+  exportAllBusinessDataJSON: () => void;
+  exportAllBusinessDataCSVZip: () => Promise<void>;
+  exportConsolidatedCSV: () => void;
+  backupScheduleConfig: BackupScheduleConfig;
+  updateBackupScheduleConfig: (cfg: Partial<BackupScheduleConfig>) => void;
+  backupSnapshots: BackupSnapshot[];
+  createBackupSnapshot: (trigger?: 'MANUAL' | 'SCHEDULED', format?: 'JSON' | 'CSV' | 'BOTH', triggerDownload?: boolean) => { success: boolean; snapshot?: BackupSnapshot; error?: string };
+  deleteBackupSnapshot: (id: string) => boolean;
+  restoreFromSnapshot: (id: string) => { 
+    success: boolean; 
+    summary?: {
+      productsCount: number;
+      imeisCount: number;
+      salesCount: number;
+      customersCount: number;
+      suppliersCount: number;
+      date?: string;
+    }; 
+    error?: string; 
+  };
   restoreFromBackup: (backupJsonString: string) => { 
     success: boolean; 
     summary?: {
@@ -386,7 +407,22 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [supplierLedgers, setSupplierLedgers] = useState<SupplierLedgerEntry[]>(() => loadState('sup_ledger', initialSupplierLedger));
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>(() => loadState('audit_logs', initialAuditLogs));
 
+  const defaultScheduleConfig: BackupScheduleConfig = {
+    enabled: true,
+    frequency: 'daily',
+    format: 'BOTH',
+    autoDownload: false,
+    keepLocalSnapshots: true,
+    lastBackupDate: new Date().toISOString(),
+    nextBackupDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  };
+
+  const [backupScheduleConfig, setBackupScheduleConfig] = useState<BackupScheduleConfig>(() => loadState('backup_sched', defaultScheduleConfig));
+  const [backupSnapshots, setBackupSnapshots] = useState<BackupSnapshot[]>(() => loadState('backup_snapshots', []));
+
   // Auto-sync state changes to localStorage
+  useEffect(() => saveState('backup_sched', backupScheduleConfig), [backupScheduleConfig]);
+  useEffect(() => saveState('backup_snapshots', backupSnapshots), [backupSnapshots]);
   useEffect(() => saveState('config', businessConfig), [businessConfig]);
   useEffect(() => saveState('biz_type', businessType), [businessType]);
   useEffect(() => saveState('branches', branches), [branches]);
@@ -2701,65 +2737,220 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, adjustmentNo };
   };
 
-  // 13. EXPORT ALL BUSINESS DATA (BACKUP)
-  const exportAllBusinessData = () => {
+  // 13. FULL BACKUP & CSV/JSON EXPORT SYSTEM
+  const getFullDatabaseObject = () => ({
+    system: 'MOBILE_D_ERP',
+    schemaVersion: 2,
+    exportDate: new Date().toISOString(),
+    summary: {
+      productsCount: products.length,
+      imeisCount: imeis.length,
+      salesCount: sales.length,
+      customersCount: customers.length,
+      suppliersCount: suppliers.length,
+      branchesCount: branches.length,
+      expensesCount: expenses.length
+    },
+    businessConfig,
+    businessType,
+    branches,
+    users,
+    brands,
+    categories,
+    products,
+    imeis,
+    customers,
+    suppliers,
+    cashAccounts,
+    bankAccounts,
+    accountTransactions,
+    expenseCategories,
+    expenses,
+    sales,
+    purchases,
+    quotations,
+    salesReturns,
+    purchaseReturns,
+    stockTransfers,
+    stockAdjustments,
+    warrantyClaims,
+    dailyClosings,
+    chartOfAccounts,
+    journalEntries,
+    customerLedgers,
+    supplierLedgers,
+    auditLogs
+  });
+
+  const exportAllBusinessDataJSON = () => {
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
     const timeStr = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
     
-    const backupData = {
-      system: 'MOBILE_D_ERP',
-      schemaVersion: 2,
-      exportDate: now.toISOString(),
-      summary: {
-        productsCount: products.length,
-        imeisCount: imeis.length,
-        salesCount: sales.length,
-        customersCount: customers.length,
-        suppliersCount: suppliers.length,
-        branchesCount: branches.length,
-        expensesCount: expenses.length
-      },
+    const backupData = getFullDatabaseObject();
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MOBILE_DERP_BACKUP_${dateStr}_${timeStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    logAudit('DATA_BACKUP_EXPORTED_JSON', 'Settings', 'BACKUP', `Exported full database backup (${products.length} products, ${imeis.length} devices, ${sales.length} sales)`);
+  };
+
+  const exportAllBusinessData = exportAllBusinessDataJSON;
+
+  const exportAllBusinessDataCSVZip = async () => {
+    const db: any = {
       businessConfig,
-      businessType,
       branches,
-      users,
       brands,
       categories,
       products,
       imeis,
       customers,
       suppliers,
+      expenses,
+      expenseCategories,
       cashAccounts,
       bankAccounts,
-      accountTransactions,
-      expenseCategories,
-      expenses,
       sales,
-      purchases,
-      quotations,
-      salesReturns,
-      purchaseReturns,
-      stockTransfers,
-      stockAdjustments,
-      warrantyClaims,
-      dailyClosings,
-      chartOfAccounts,
       journalEntries,
-      customerLedgers,
-      supplierLedgers,
       auditLogs
     };
-
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `MOBILE_DERP_BACKUP_${dateStr}_${timeStr}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    logAudit('DATA_BACKUP_EXPORTED', 'Settings', 'BACKUP', `Exported full database backup (${products.length} products, ${imeis.length} devices, ${sales.length} sales)`);
+    await exportDatabaseToCsvZip(db);
+    logAudit('DATA_BACKUP_EXPORTED_CSV_ZIP', 'Settings', 'BACKUP', `Exported full database as CSV Zip archive`);
   };
+
+  const exportConsolidatedCSV = () => {
+    const db: any = {
+      businessConfig,
+      branches,
+      brands,
+      categories,
+      products,
+      imeis,
+      customers,
+      suppliers,
+      expenses,
+      expenseCategories,
+      cashAccounts,
+      bankAccounts,
+      sales,
+      journalEntries,
+      auditLogs
+    };
+    exportConsolidatedDatabaseCsv(db);
+    logAudit('DATA_BACKUP_EXPORTED_CSV_CONSOLIDATED', 'Settings', 'BACKUP', `Exported consolidated database CSV spreadsheet`);
+  };
+
+  const createBackupSnapshot = (
+    trigger: 'MANUAL' | 'SCHEDULED' = 'MANUAL', 
+    format: 'JSON' | 'CSV' | 'BOTH' = 'BOTH', 
+    triggerDownload = false
+  ) => {
+    try {
+      const now = new Date();
+      const backupData = getFullDatabaseObject();
+      const jsonStr = JSON.stringify(backupData);
+      const sizeKb = Math.round(jsonStr.length / 1024);
+
+      const snapshot: BackupSnapshot = {
+        id: `snap-${Date.now()}`,
+        timestamp: now.toISOString(),
+        trigger,
+        format,
+        sizeKb,
+        summary: {
+          productsCount: products.length,
+          imeisCount: imeis.length,
+          salesCount: sales.length,
+          customersCount: customers.length,
+          suppliersCount: suppliers.length,
+          expensesCount: expenses.length
+        },
+        jsonData: jsonStr
+      };
+
+      setBackupSnapshots(prev => [snapshot, ...prev.slice(0, 9)]);
+
+      let intervalDays = 1;
+      if (backupScheduleConfig.frequency === 'every_3_days') intervalDays = 3;
+      if (backupScheduleConfig.frequency === 'weekly') intervalDays = 7;
+      const nextDate = new Date(now.getTime() + intervalDays * 24 * 60 * 60 * 1000);
+
+      setBackupScheduleConfig(prev => ({
+        ...prev,
+        lastBackupDate: now.toISOString(),
+        nextBackupDate: nextDate.toISOString()
+      }));
+
+      if (triggerDownload) {
+        if (format === 'JSON' || format === 'BOTH') {
+          exportAllBusinessDataJSON();
+        }
+        if (format === 'CSV' || format === 'BOTH') {
+          exportAllBusinessDataCSVZip();
+        }
+      }
+
+      logAudit(
+        trigger === 'SCHEDULED' ? 'SCHEDULED_BACKUP_COMPLETED' : 'MANUAL_BACKUP_SNAPSHOT_CREATED',
+        'Settings',
+        snapshot.id,
+        `${trigger} backup snapshot saved (${sizeKb} KB, ${products.length} products, ${sales.length} sales)`
+      );
+
+      return { success: true, snapshot };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Failed to create backup snapshot' };
+    }
+  };
+
+  const deleteBackupSnapshot = (id: string) => {
+    setBackupSnapshots(prev => prev.filter(s => s.id !== id));
+    logAudit('BACKUP_SNAPSHOT_DELETED', 'Settings', id, `Deleted backup snapshot`);
+    return true;
+  };
+
+  const restoreFromSnapshot = (id: string) => {
+    const target = backupSnapshots.find(s => s.id === id);
+    if (!target) return { success: false, error: 'Snapshot not found' };
+    return restoreFromBackup(target.jsonData);
+  };
+
+  const updateBackupScheduleConfig = (cfg: Partial<BackupScheduleConfig>) => {
+    setBackupScheduleConfig(prev => {
+      const updated = { ...prev, ...cfg };
+      if (cfg.frequency && cfg.frequency !== prev.frequency) {
+        let intervalDays = 1;
+        if (updated.frequency === 'every_3_days') intervalDays = 3;
+        if (updated.frequency === 'weekly') intervalDays = 7;
+        updated.nextBackupDate = new Date(Date.now() + intervalDays * 24 * 60 * 60 * 1000).toISOString();
+      }
+      return updated;
+    });
+  };
+
+  // Background auto-backup scheduler effect
+  useEffect(() => {
+    if (!backupScheduleConfig.enabled) return;
+
+    const checkAndRunAutoBackup = () => {
+      const now = Date.now();
+      const nextDate = backupScheduleConfig.nextBackupDate ? new Date(backupScheduleConfig.nextBackupDate).getTime() : 0;
+      if (now >= nextDate && nextDate > 0) {
+        createBackupSnapshot('SCHEDULED', backupScheduleConfig.format, backupScheduleConfig.autoDownload);
+      }
+    };
+
+    checkAndRunAutoBackup();
+    const interval = setInterval(checkAndRunAutoBackup, 60000);
+    return () => clearInterval(interval);
+  }, [backupScheduleConfig.enabled, backupScheduleConfig.nextBackupDate, backupScheduleConfig.format, backupScheduleConfig.autoDownload]);
+
 
   // 14. RESTORE DATABASE FROM BACKUP
   const restoreFromBackup = (backupJsonString: string) => {
@@ -3172,6 +3363,15 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       createPurchaseReturn,
       createStockAdjustment,
       exportAllBusinessData,
+      exportAllBusinessDataJSON,
+      exportAllBusinessDataCSVZip,
+      exportConsolidatedCSV,
+      backupScheduleConfig,
+      updateBackupScheduleConfig,
+      backupSnapshots,
+      createBackupSnapshot,
+      deleteBackupSnapshot,
+      restoreFromSnapshot,
       receiveCustomerPayment,
       paySupplier,
       createExpense,

@@ -1,8 +1,9 @@
-import React from 'react';
-import { X, Printer, FileText, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Printer, FileText, CheckCircle2, MessageSquare, Copy, Check } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
 import { Quotation } from '../../types/erp';
+import { shareViaWhatsApp, copyToClipboard } from '../../utils/shareUtils';
 
 interface QuotationPrintModalProps {
   quotation: Quotation | null;
@@ -16,11 +17,31 @@ export const QuotationPrintModal: React.FC<QuotationPrintModalProps> = ({
   onConvert
 }) => {
   const { businessConfig, language } = useERP();
+  const [copied, setCopied] = useState(false);
 
   if (!quotation) return null;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const quoteShareText = `📋 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - দরপ্রস্তাব / Price Quotation*
+📄 কোটেশন নং: *${quotation.quoteNo}*
+📅 তারিখ: ${formatDate(quotation.date)}
+👤 গ্রাহক: *${quotation.customerName}* ${quotation.customerPhone ? `(${quotation.customerPhone})` : ''}
+
+📦 *প্রস্তাবিত আইটেম তালিকা:*
+${quotation.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}`).join('\n')}
+
+💰 সর্বমোট অফার মূল্য: *${formatBDT(quotation.grandTotal)}*
+⏳ মেয়াদ: ৭ কার্যদিবস প্রযোজ্য`;
+
+  const handleCopyText = async () => {
+    const success = await copyToClipboard(quoteShareText);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -43,13 +64,31 @@ export const QuotationPrintModal: React.FC<QuotationPrintModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => shareViaWhatsApp(quoteShareText, quotation.customerPhone)}
+              className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="WhatsApp এ কোটেশন শেয়ার করুন"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyText}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              title="কোটেশন টেক্সট কপি করুন"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{copied ? 'কপি হয়েছে' : 'কপি'}</span>
+            </button>
             {quotation.status !== 'CONVERTED' && onConvert && (
               <button
                 onClick={() => {
                   onConvert(quotation.id);
                   onClose();
                 }}
-                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>Convert to Invoice</span>
@@ -57,14 +96,14 @@ export const QuotationPrintModal: React.FC<QuotationPrintModalProps> = ({
             )}
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-700"
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 border border-slate-700 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print Quotation</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>

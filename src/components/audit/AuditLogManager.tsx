@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { History, Search, ShieldCheck, Filter } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
+import { ShareExportButtons } from '../common/ShareExportButtons';
 
 export const AuditLogManager: React.FC = () => {
-  const { auditLogs, language } = useERP();
+  const { businessConfig, auditLogs, language } = useERP();
   const [searchTerm, setSearchTerm] = useState('');
   const [moduleFilter, setModuleFilter] = useState('ALL');
 
@@ -20,16 +21,37 @@ export const AuditLogManager: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-          {language === 'bn' ? 'অডিট লগ ও সিস্টেম ট্র্যাকিং' : 'System Audit Logs & Compliance'}
-        </h1>
-        <p className="text-xs text-slate-500">
-          {language === 'bn' 
-            ? 'প্রতিটি লেনদেন, বিক্রয়, ডিসকাউন্ট ও ব্যালেন্স পরিবর্তনের অপরিবর্তনীয় রেকর্ড' 
-            : 'Immutable timestamped audit trail of financial transactions, sales, and user authorizations.'}
-        </p>
+      {/* Header with Share & Export */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">
+            {language === 'bn' ? 'অডিট লগ ও সিস্টেম ট্র্যাকিং' : 'System Audit Logs & Compliance'}
+          </h1>
+          <p className="text-xs text-slate-500">
+            {language === 'bn' 
+              ? 'প্রতিটি লেনদেন, বিক্রয়, ডিসকাউন্ট ও ব্যালেন্স পরিবর্তনের অপরিবর্তনীয় রেকর্ড' 
+              : 'Immutable timestamped audit trail of financial transactions, sales, and user authorizations.'}
+          </p>
+        </div>
+        <div className="self-start sm:self-auto">
+          <ShareExportButtons
+            title={language === 'bn' ? 'সিস্টেম অডিট ও কমপ্লায়েন্স লগ' : 'System Audit & Compliance Log'}
+            subtitle={`Filter: ${moduleFilter} • Entries: ${filteredLogs.length}`}
+            summaryMetrics={[
+              { label: 'Total Audit Entries', value: `${filteredLogs.length}` },
+              { label: 'System Modules', value: '14 Modules' }
+            ]}
+            shareText={`🛡️ *${language === 'bn' ? 'সিস্টেম নিরাপত্তা ও অডিট লগ' : 'System Audit & Compliance Log'}*\n🏛️ শোরুম: *${businessConfig?.name || 'DEALERFLOW ERP'}*\n📅 ${language === 'bn' ? 'তারিখ' : 'Date'}: ${new Date().toLocaleDateString('en-US', { dateStyle: 'medium' })}\n\n🔐 *অডিট লগ বিবরণ:*\n• মোট রেকর্ডকৃত কার্যক্রম: ${filteredLogs.length} টি\n• ফিল্টার মডিউল: ${moduleFilter}\n\nGenerated via DEALERFLOW Hub.`}
+            csvData={{
+              filename: 'system_audit_logs',
+              headers: ['Timestamp', 'User Name', 'Role', 'Module', 'Action', 'Record ID', 'Details'],
+              rows: filteredLogs.map(l => [
+                l.timestamp, l.userName, l.userRole, l.module,
+                l.action, l.recordId, l.details
+              ])
+            }}
+          />
+        </div>
       </div>
 
       {/* Filter and Search */}

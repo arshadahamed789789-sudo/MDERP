@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Printer, Download, CheckCircle, Share2, ShieldCheck, Receipt, FileText } from 'lucide-react';
+import { X, Printer, Download, CheckCircle, Share2, ShieldCheck, Receipt, FileText, MessageSquare, Copy, Check } from 'lucide-react';
 import { useERP } from '../../services/erpStore';
 import { formatBDT, formatDate } from '../../utils/formatters';
+import { shareViaWhatsApp, copyToClipboard, shareViaNavigator } from '../../utils/shareUtils';
 
 interface InvoicePrintModalProps {
   invoiceNo: string | null;
@@ -14,6 +15,7 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
 }) => {
   const { sales, businessConfig } = useERP();
   const [printLayout, setPrintLayout] = useState<'a4' | 'thermal'>('a4');
+  const [copied, setCopied] = useState(false);
 
   if (!invoiceNo) return null;
 
@@ -22,6 +24,28 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const invoiceShareText = `🧾 *${businessConfig?.shopName || 'DEALERFLOW HUB'} - বিক্রয় মেমো*
+📄 ইনভয়েস নং: *${invoice.invoiceNo}*
+📅 তারিখ: ${formatDate(invoice.date)}
+👤 ক্রেতা: *${invoice.customerName}* ${invoice.customerPhone ? `(${invoice.customerPhone})` : ''}
+
+🛍️ *পণ্যের বিবরণ:*
+${invoice.items.map((it, idx) => `${idx + 1}. ${it.productModel} (${it.variantName}) x ${it.quantity} = ${formatBDT(it.total)}${it.imeis?.length ? `\n   IMEI: ${it.imeis.join(', ')}` : ''}`).join('\n')}
+
+💵 সর্বমোট মূল্য: ${formatBDT(invoice.grandTotal)}
+✅ পরিশোধিত: ${formatBDT(invoice.paidAmount)}
+${invoice.dueAmount > 0 ? `⚠️ *বকেয়া পাওনা: ${formatBDT(invoice.dueAmount)}*` : '🎉 *পরিশোধ সম্পন্ন (Full Paid)*'}
+
+ধন্যবাদ আমাদের সাথে থাকার জন্য!`;
+
+  const handleCopyText = async () => {
+    const success = await copyToClipboard(invoiceShareText);
+    if (success) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (
@@ -52,15 +76,33 @@ export const InvoicePrintModal: React.FC<InvoicePrintModalProps> = ({
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
+              onClick={() => shareViaWhatsApp(invoiceShareText, invoice.customerPhone)}
+              className="px-2.5 py-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              title="WhatsApp এ ইনভয়েস শেয়ার করুন"
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleCopyText}
+              className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+              title="ইনভয়েস টেক্সট কপি করুন"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{copied ? 'কপি হয়েছে' : 'কপি'}</span>
+            </button>
+            <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print</span>
             </button>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
